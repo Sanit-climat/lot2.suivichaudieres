@@ -139,6 +139,14 @@ tr.todo td:first-child{border-left:3px solid var(--border)}
 .progress-fill{height:100%;background:linear-gradient(90deg,var(--success),#2ecc71);border-radius:10px;transition:width .5s}
 .res-progress-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:12px}
 .res-progress-item{background:var(--white);border-radius:10px;padding:14px 16px;box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .2s,transform .15s}.res-progress-item:hover{box-shadow:0 4px 16px rgba(26,82,118,.18);transform:translateY(-2px)}
+.res-progress-item.type-appar_ramon_vmc{border-left:5px solid #e67e22;}
+.res-progress-item.type-appar_ramon_vmc h4{color:#c0392b;}
+.res-progress-item.type-vmc{border-left:5px solid #27ae60;}
+.res-progress-item.type-vmc h4{color:#1e8449;}
+.res-progress-item.type-appar{border-left:5px solid #2980b9;}
+.res-progress-item.type-appar h4{color:#1a5276;}
+.res-progress-item.type-appar_vmc{border-left:5px solid #8e44ad;}
+.res-progress-item.type-appar_vmc h4{color:#6c3483;}
 .res-progress-item h4{font-size:13px;font-weight:700;color:var(--primary);margin-bottom:8px}
 .res-progress-item .nums{display:flex;justify-content:space-between;font-size:12px;color:#666;margin-bottom:4px}
 /* MODAL */
@@ -211,6 +219,22 @@ body.readonly .readonly-badge { display:flex !important }
 .spinner{width:40px;height:40px;border:4px solid #ddd;border-top-color:var(--primary);border-radius:50%;animation:spin 0.8s linear infinite;margin-right:12px}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media(max-width:600px){.search-bar{flex-direction:column}.search-bar input{min-width:100%}.stats-grid{grid-template-columns:1fr 1fr}}
+
+/* ===== COULEURS PAR TYPE DE PRESTATION ===== */
+.res-type-appar_ramon_vmc .res-header { border-left: 5px solid #e67e22; }
+.res-type-appar_ramon_vmc .res-header .res-title::before { content: '🔥 '; }
+.res-type-vmc .res-header { border-left: 5px solid #27ae60; }
+.res-type-vmc .res-header .res-title::before { content: '💨 '; }
+.res-type-appar .res-header { border-left: 5px solid #2980b9; }
+.res-type-appar .res-header .res-title::before { content: '🔵 '; }
+.res-type-appar_vmc .res-header { border-left: 5px solid #8e44ad; }
+.res-type-appar_vmc .res-header .res-title::before { content: '🔥 '; }
+
+/* Légende dashboard */
+.legend-bar { display:flex; gap:18px; flex-wrap:wrap; padding:10px 18px 4px; font-size:13px; align-items:center; }
+.legend-item { display:flex; align-items:center; gap:6px; }
+.legend-dot { width:14px; height:14px; border-radius:3px; flex-shrink:0; }
+
 </style>
 </head>
 <body>
@@ -274,7 +298,13 @@ body.readonly .readonly-badge { display:flex !important }
         <div class="lbl">🔧 Interventions</div>
       </div>
     </div>
-    <h3 style="margin-bottom:12px;color:var(--primary)">Avancement par résidence</h3>
+    <h3 style="margin-bottom:8px;color:var(--primary)">Avancement par résidence</h3>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px;font-size:12px;align-items:center;">
+      <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:12px;height:12px;background:#e67e22;border-radius:2px"></span> Appareil + Ramonage + VMC</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:12px;height:12px;background:#27ae60;border-radius:2px"></span> VMC uniquement</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:12px;height:12px;background:#8e44ad;border-radius:2px"></span> Appareil + VMC</span>
+      <span style="display:flex;align-items:center;gap:5px"><span style="display:inline-block;width:12px;height:12px;background:#2980b9;border-radius:2px"></span> Appareil uniquement</span>
+    </div>
     <div class="res-progress-list" id="dashResidences"></div>
   </div>
 
@@ -288,7 +318,14 @@ body.readonly .readonly-badge { display:flex !important }
         <option value="todo">⏳ À faire</option>
       </select>
     </div>
-    <div id="accordionContainer"></div>
+    <div class="legend-bar">
+  <strong style="margin-right:4px">Prestations :</strong>
+  <span class="legend-item"><span class="legend-dot" style="background:#e67e22"></span> Appareil de production + Ramonage + VMC</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#27ae60"></span> VMC uniquement</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#8e44ad"></span> Appareil de production + VMC</span>
+  <span class="legend-item"><span class="legend-dot" style="background:#2980b9"></span> Appareil de production uniquement</span>
+</div>
+<div id="accordionContainer"></div>
   </div>
 
   <!-- LOCATAIRES -->
@@ -2180,6 +2217,28 @@ function seedInitialData() {
   });
 }
 
+
+const RES_TYPES = {
+  "Les Raumettes - Marignane":                  "appar_ramon_vmc",
+  "L'Ancolie - Eyguières":                      "appar_ramon_vmc",
+  "Les Bastides du Griffon - Vitrolles":         "appar_ramon_vmc",
+  "Les Frégates - Rognac":                       "appar_ramon_vmc",
+  "Les Vignes - Lançon de Provence":             "appar_ramon_vmc",
+  "Le Loriot - La Roque d'Anthéron":             "appar_ramon_vmc",
+  "Le Clos de Lacanau - Marignane":              "appar_ramon_vmc",
+  "Latécoère - Marignane":                       "appar_ramon_vmc",
+  "Le Clos du Pressoir - Velaux":                "appar_ramon_vmc",
+  "Les Grandes Terres - Le Puy Ste Réparade":    "appar_ramon_vmc",
+  "Les Pergolas - Marignane":                    "appar_ramon_vmc",
+  "Cœur de Pinède - Pertuis":                    "appar_ramon_vmc",
+  "Les Logis de Berre - Berre l'Étang":          "vmc",
+  "Le Clos des Écoles - Lambesc":                "vmc",
+  "Parc Camoin - Marignane":                     "vmc",
+  "Les Moulins de Guynemer - Marignane":         "vmc",
+  "Domaine de Beauprés 1 - Marignane":           "appar",
+  "Domaine de Beauprés 2 - Marignane":           "appar_vmc",
+};
+
 // ===================== AUTH =====================
 auth.onAuthStateChanged(user => {
   document.getElementById('loader').style.display = 'none';
@@ -2279,7 +2338,7 @@ function renderDashboard() {
     });
     const p = t > 0 ? Math.round(d / t * 100) : 0;
     const div = document.createElement('div');
-    div.className = 'res-progress-item';
+    div.className = 'res-progress-item type-' + (RES_TYPES[res.nom] || 'appar_ramon_vmc');
     div.title = `Voir la résidence ${res.nom}`;
     div.onclick = () => goToResidence(ri);
     div.innerHTML = `<h4 style="display:flex;align-items:center;justify-content:space-between">${res.nom}<span style="font-size:11px;font-weight:500;color:#94a3b8;letter-spacing:.3px">Ouvrir →</span></h4>
@@ -2394,7 +2453,7 @@ function renderAccordion() {
     });
     
     const div = document.createElement('div');
-    div.className = 'res-accordion';
+    div.className = 'res-accordion res-type-' + (RES_TYPES[res.nom] || 'appar_ramon_vmc');
     const isOpen = openStates[ri] !== undefined ? openStates[ri] : false;
     div.innerHTML = `
       <div class="res-header" onclick="toggleRes(this)">
