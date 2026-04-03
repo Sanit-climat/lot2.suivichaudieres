@@ -356,7 +356,9 @@ body.readonly .readonly-badge { display:flex !important }
         <h2>👤 Locataires</h2>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="text" id="locSearchInput" placeholder="🔍 Rechercher..." oninput="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;min-width:220px">
-          <div class="ss-wrap" id="locFilterResWrap" style="min-width:220px"></div>
+          <select id="locFilterResWrap" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white);min-width:220px">
+            <option value="">Toutes les résidences</option>
+          </select>
           <select id="locFilterStatut" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
             <option value="all">Tous les statuts</option>
             <option value="todo">⏳ Non réalisés</option>
@@ -882,7 +884,19 @@ function initAllSearchableSelects() {
     return t !== 'vmc';
   });
 
-  ssSetOptions('locFilterResWrap', allOpts, 'Toutes les résidences', () => renderLocatairesTable());
+  // Peupler le select résidence locataires
+  const locResEl = document.getElementById('locFilterResWrap');
+  if (locResEl) {
+    const prev = locResEl.value;
+    locResEl.innerHTML = '<option value="">Toutes les résidences</option>';
+    allOpts.forEach(opt => {
+      const o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.label;
+      locResEl.appendChild(o);
+    });
+    locResEl.value = prev;
+  }
   ssSetOptions('equipFilterResWrap', vmcOpts, 'Toutes les résidences', () => renderEquipementsTable());
   ssSetOptions('chaudFilterResWrap', chaudOpts, 'Toutes les résidences', () => renderChaudieresTable());
   ssSetOptions('intervFilterResWrap', allOpts, 'Toutes les résidences', () => renderInterventionsTable());
@@ -3226,7 +3240,7 @@ function echeanceBadge(dateStr) {
 function renderLocatairesTable() {
   initLocModalSelects();
   const q = (document.getElementById('locSearchInput')?.value || '').toLowerCase();
-  const riFilter = ssGetValue('locFilterResWrap');
+  const riFilter = document.getElementById('locFilterResWrap')?.value || '';
   const statutFilter = document.getElementById('locFilterStatut')?.value || 'all';
   const all = getMergedLocataires();
   let filtered = all.filter(loc => {
@@ -3872,7 +3886,7 @@ document.getElementById('suiviModalOverlay').addEventListener('click', function(
 
 // ===================== VUE BAILLEUR =====================
 function openBailleurView() {
-  const riFilter = ssGetValue('locFilterResWrap');
+  const riFilter = document.getElementById('locFilterResWrap')?.value || '';
   const all = getMergedLocataires();
   const filtered = riFilter !== '' ? all.filter(l => String(l._resIdx) === riFilter) : all;
 
@@ -3901,9 +3915,14 @@ function openBailleurView() {
         .filter(d => d.resIdx === loc._resIdx && d.locIdx === loc._locIdx)
         .sort((a,b) => (b.date||'').localeCompare(a.date||''));
       const lastInterv = intervs[0];
-      const intervCell = lastInterv
-        ? `${lastInterv.date || '—'}<br><small>${RESULTAT_LABELS[lastInterv.resultat] || '—'}</small>`
-        : '—';
+      let intervCell;
+      if (lastInterv) {
+        intervCell = `${lastInterv.date ? new Date(lastInterv.date).toLocaleDateString('fr-FR') : '—'}<br><small>${RESULTAT_LABELS[lastInterv.resultat] || '—'}</small>`;
+      } else if (done && d_b.date) {
+        intervCell = `${new Date(d_b.date).toLocaleDateString('fr-FR')}<br><small>—</small>`;
+      } else {
+        intervCell = '—';
+      }
 
       rows += `<tr>
         <td>${loc.ref || '—'}</td>
