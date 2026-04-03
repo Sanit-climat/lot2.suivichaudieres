@@ -211,6 +211,22 @@ body.readonly .bailleur-btn,
 body.readonly #btnLogout { display:none }
 body.readonly .readonly-badge { display:flex !important }
 .readonly-badge { display:none;align-items:center;gap:6px;background:rgba(108,52,131,.25);border:1px solid rgba(108,52,131,.5);color:#fff;padding:5px 12px;border-radius:6px;font-size:12px;font-weight:600 }
+/* SEARCHABLE SELECT */
+.ss-wrap{position:relative;display:inline-block;min-width:200px}
+.ss-input{padding:8px 28px 8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:var(--white);cursor:pointer;width:100%;outline:none;transition:border .2s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box}
+.ss-input:focus,.ss-input.open{border-color:var(--secondary)}
+.ss-arrow{position:absolute;right:8px;top:50%;transform:translateY(-50%);pointer-events:none;color:#888;font-size:11px;transition:transform .2s}
+.ss-arrow.open{transform:translateY(-50%) rotate(180deg)}
+.ss-dropdown{display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--white);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,.15);z-index:900;min-width:220px}
+.ss-dropdown.open{display:block}
+.ss-search{padding:8px;border-bottom:1px solid var(--border)}
+.ss-search input{width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px;outline:none;box-sizing:border-box}
+.ss-search input:focus{border-color:var(--secondary)}
+.ss-list{max-height:220px;overflow-y:auto}
+.ss-option{padding:8px 12px;font-size:13px;cursor:pointer;transition:background .15s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ss-option:hover,.ss-option.focused{background:#f0f4f8}
+.ss-option.selected{background:#e8f4fd;color:var(--primary);font-weight:600}
+.ss-option.hidden{display:none}
 /* TOAST */
 .toast{position:fixed;bottom:20px;right:20px;background:var(--text);color:var(--white);padding:12px 20px;border-radius:10px;font-size:13px;z-index:2000;opacity:0;transition:opacity .3s;pointer-events:none}
 .toast.show{opacity:1}
@@ -335,9 +351,7 @@ body.readonly .readonly-badge { display:flex !important }
         <h2>👤 Locataires</h2>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="text" id="locSearchInput" placeholder="🔍 Rechercher..." oninput="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;min-width:220px">
-          <select id="locFilterRes" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
-            <option value="">Toutes les résidences</option>
-          </select>
+          <div class="ss-wrap" id="locFilterResWrap" style="min-width:220px"></div>
           <select id="locSortBy" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
             <option value="nom">Trier : Nom A→Z</option>
             <option value="nom_desc">Trier : Nom Z→A</option>
@@ -359,9 +373,7 @@ body.readonly .readonly-badge { display:flex !important }
     <div class="toolbar">
       <div class="search-bar" style="margin-bottom:0;flex:1">
         <input type="text" id="chaudSearchInput" placeholder="🔍 Rechercher locataire ou type de chaudière..." oninput="renderChaudieresTable()">
-        <select id="chaudFilterRes" onchange="renderChaudieresTable()">
-          <option value="">Toutes les résidences</option>
-        </select>
+        <div class="ss-wrap" id="chaudFilterResWrap" style="min-width:200px"></div>
       </div>
       <button class="btn-add" onclick="openChaudModal()" style="margin-left:10px">➕ Ajouter chaudière</button>
     </div>
@@ -373,9 +385,7 @@ body.readonly .readonly-badge { display:flex !important }
     <div class="toolbar">
       <div class="search-bar" style="margin-bottom:0;flex:1">
         <input type="text" id="intervSearchInput" placeholder="🔍 Rechercher locataire, résidence, technicien..." oninput="renderInterventionsTable()">
-        <select id="intervFilterRes" onchange="renderInterventionsTable()">
-          <option value="">Toutes les résidences</option>
-        </select>
+        <div class="ss-wrap" id="intervFilterResWrap" style="min-width:200px"></div>
         <select id="intervFilterPeriod" onchange="renderInterventionsTable()">
           <option value="">Toute période</option>
           <option value="7">7 derniers jours</option>
@@ -741,6 +751,135 @@ body.readonly .readonly-badge { display:flex !important }
 </div>
 
 <script>
+// ===================== SEARCHABLE SELECT =====================
+const _ssState = {}; // id → {value, label}
+
+function createSearchableSelect(wrapperId, options, placeholder, onChange) {
+  const wrap = document.getElementById(wrapperId);
+  if (!wrap) return;
+  const id = wrapperId;
+  if (!_ssState[id]) _ssState[id] = {value: '', label: placeholder};
+
+  wrap.innerHTML = `
+    <div class="ss-input" id="${id}_btn" tabindex="0">${_ssState[id].label}</div>
+    <span class="ss-arrow" id="${id}_arrow">▼</span>
+    <div class="ss-dropdown" id="${id}_drop">
+      <div class="ss-search"><input type="text" id="${id}_search" placeholder="🔍 Rechercher..." autocomplete="off"></div>
+      <div class="ss-list" id="${id}_list"></div>
+    </div>`;
+
+  function buildList(filter) {
+    const list = document.getElementById(id + '_list');
+    list.innerHTML = '';
+    const f = (filter || '').toLowerCase().replace(/\s+/g,'');
+    // All option
+    const allDiv = document.createElement('div');
+    allDiv.className = 'ss-option' + (_ssState[id].value === '' ? ' selected' : '');
+    allDiv.textContent = placeholder;
+    allDiv.dataset.value = '';
+    list.appendChild(allDiv);
+    options.forEach(opt => {
+      const searchable = opt.label.toLowerCase().replace(/\s+/g,'');
+      const div = document.createElement('div');
+      div.className = 'ss-option' + (_ssState[id].value === String(opt.value) ? ' selected' : '');
+      if (f && !searchable.includes(f)) div.classList.add('hidden');
+      div.textContent = opt.label;
+      div.dataset.value = opt.value;
+      list.appendChild(div);
+    });
+    // Click on option
+    list.querySelectorAll('.ss-option').forEach(div => {
+      div.addEventListener('mousedown', e => {
+        e.preventDefault();
+        _ssState[id] = {value: div.dataset.value, label: div.textContent};
+        document.getElementById(id + '_btn').textContent = div.textContent;
+        closeDropdown();
+        if (onChange) onChange(div.dataset.value);
+      });
+    });
+  }
+
+  function openDropdown() {
+    document.getElementById(id + '_drop').classList.add('open');
+    document.getElementById(id + '_btn').classList.add('open');
+    document.getElementById(id + '_arrow').classList.add('open');
+    document.getElementById(id + '_search').value = '';
+    buildList('');
+    setTimeout(() => document.getElementById(id + '_search').focus(), 50);
+    // Close others
+    document.querySelectorAll('.ss-dropdown.open').forEach(d => {
+      if (d.id !== id + '_drop') d.classList.remove('open');
+    });
+  }
+
+  function closeDropdown() {
+    document.getElementById(id + '_drop').classList.remove('open');
+    document.getElementById(id + '_btn').classList.remove('open');
+    document.getElementById(id + '_arrow').classList.remove('open');
+  }
+
+  document.getElementById(id + '_btn').addEventListener('click', () => {
+    const isOpen = document.getElementById(id + '_drop').classList.contains('open');
+    if (isOpen) closeDropdown(); else openDropdown();
+  });
+  document.getElementById(id + '_btn').addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDropdown(); }
+    if (e.key === 'Escape') closeDropdown();
+  });
+  document.getElementById(id + '_search').addEventListener('input', e => {
+    buildList(e.target.value);
+  });
+  document.getElementById(id + '_search').addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeDropdown();
+  });
+  // Close on outside click
+  document.addEventListener('mousedown', e => {
+    if (!wrap.contains(e.target)) closeDropdown();
+  }, true);
+
+  buildList('');
+}
+
+function ssGetValue(wrapperId) {
+  return (_ssState[wrapperId] || {}).value || '';
+}
+
+function ssSetOptions(wrapperId, options, placeholder, onChange) {
+  // Preserve current value if still valid
+  const current = ssGetValue(wrapperId);
+  const stillValid = current === '' || options.some(o => String(o.value) === current);
+  if (!stillValid) _ssState[wrapperId] = {value: '', label: placeholder};
+  createSearchableSelect(wrapperId, options, placeholder, onChange);
+}
+
+function buildResOptions(filterFn) {
+  const opts = [];
+  RESIDENCES_DATA.forEach((res, i) => {
+    if (!filterFn || filterFn(res, i)) {
+      opts.push({value: i, label: res.nom});
+    }
+  });
+  return opts;
+}
+
+function initAllSearchableSelects() {
+  const allOpts = buildResOptions();
+  const vmcOpts = buildResOptions((res, ri) => {
+    const t = RES_TYPES[res.nom] || 'appar';
+    const vmcInfo = VMC_COUNTS[res.nom] || null;
+    return t === 'vmc' || (vmcInfo && (vmcInfo.vmc + vmcInfo.extracteur) > 0);
+  });
+  const chaudOpts = buildResOptions((res) => {
+    const t = RES_TYPES[res.nom] || 'appar';
+    return t !== 'vmc';
+  });
+
+  ssSetOptions('locFilterResWrap', allOpts, 'Toutes les résidences', () => renderLocatairesTable());
+  ssSetOptions('equipFilterResWrap', vmcOpts, 'Toutes les résidences', () => renderEquipementsTable());
+  ssSetOptions('chaudFilterResWrap', chaudOpts, 'Toutes les résidences', () => renderChaudieresTable());
+  ssSetOptions('intervFilterResWrap', allOpts, 'Toutes les résidences', () => renderInterventionsTable());
+}
+
 // ===================== FIREBASE CONFIG =====================
 const firebaseConfig = {
   apiKey: "AIzaSyBx9MAN_fw3IQnpXegT85szGxUSNehc74M",
@@ -2285,9 +2424,22 @@ function doLogout() {
 
 // ===================== FIREBASE REALTIME =====================
 function startListening() {
+  // Pré-charger seed pour affichage immédiat
+  Object.entries(SEED_LOT2).forEach(([k, v]) => { dbData[k] = Object.assign({}, v); });
+  renderAll();
+  initAllSearchableSelects();
+  // Synchroniser avec Firebase
   const ref = db.ref('lot2');
   ref.on('value', snap => {
-    dbData = snap.val() || {};
+    const fbData = snap.val() || {};
+    dbData = {};
+    Object.entries(SEED_LOT2).forEach(([k, v]) => { dbData[k] = Object.assign({}, v); });
+    Object.entries(fbData).forEach(([k, v]) => {
+      if (dbData[k]) {
+        dbData[k] = Object.assign({}, dbData[k], v);
+        if (SEED_LOT2[k] && SEED_LOT2[k].done && v.done !== false) dbData[k].done = true;
+      } else { dbData[k] = Object.assign({}, v); }
+    });
     renderAll();
   });
 }
@@ -2390,7 +2542,7 @@ function renderAccordion() {
     res.locataires.forEach((loc, li) => {
       const k = getKey(ri, li);
       const d = dbData[k] || {};
-      const isDone = !!d.done;
+      const isDone = !!d.done || !!(SEED_LOT2[k]?.done && d.done !== false);
       count++;
       
       // Filter
@@ -2523,11 +2675,41 @@ window.toggleDone = function(key, val) {
   const updates = {};
   updates[`lot2/${key}/done`] = val;
   if (val) {
-    updates[`lot2/${key}/doneAt`] = new Date().toISOString();
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0];
+    const nextYear = new Date(today);
+    nextYear.setFullYear(nextYear.getFullYear() + 1);
+    const nextStr = nextYear.toISOString().split('T')[0];
+    updates[`lot2/${key}/date`] = todayStr;
+    updates[`lot2/${key}/doneAt`] = today.toISOString();
     updates[`lot2/${key}/doneBy`] = currentUser ? currentUser.email : '';
+    updates[`lot2/${key}/dateProchain`] = nextStr;
+    updates[`lot2_locataires/${key}/dateEntretienPrec`] = todayStr;
+    updates[`lot2_locataires/${key}/dateProchainEntretien`] = nextStr;
+    updates[`lot2_locataires/${key}/dateEntretien2026`] = nextStr;
+    // Générer une intervention d'entretien
+    try {
+      const parts = key.split('_'); // rX_lY
+      const ri = parseInt(parts[0].replace('r',''));
+      const li = parseInt(parts[1].replace('l',''));
+      const merged = getMergedLocataires();
+      const locEntry = merged.find(e => e.resIdx === ri && e.locIdx === li);
+      const locNom = locEntry ? locEntry.nom : key;
+      const resNom = (RESIDENCES_DATA[ri] && RESIDENCES_DATA[ri].nom) || '';
+      const uid = 'interv_manual_' + Date.now() + '_' + key;
+      updates[`lot2_interventions/${uid}`] = {
+        locNom, resNom, resIdx: ri, locIdx: li,
+        date: todayStr,
+        type: 'Entretien annuel',
+        technicien: currentUser ? currentUser.email : '',
+        resultat: 'ok',
+        comment: 'Entretien réalisé',
+        createdAt: today.toISOString()
+      };
+    } catch(e) { console.warn('Intervention non générée:', e); }
   }
   db.ref().update(updates);
-  showToast(val ? '✅ Entretien marqué comme fait !' : 'Statut annulé');
+  showToast(val ? '✅ Entretien fait + intervention créée !' : 'Statut annulé');
 }
 
 window.openModal = function(key, comment, date) {
@@ -2547,9 +2729,47 @@ window.saveComment = function() {
   if (!currentModalKey) return;
   const c = document.getElementById('modalComment').value.trim();
   const d = document.getElementById('modalDate').value;
-  db.ref(`lot2/${currentModalKey}`).update({ comment: c, date: d });
+  const updates = { comment: c, date: d };
+  if (d) {
+    try {
+      const dt = new Date(d);
+      if (!isNaN(dt.getTime())) {
+        const next = new Date(dt);
+        next.setFullYear(next.getFullYear() + 1);
+        updates.dateProchain = next.toISOString().slice(0, 10);
+        updates.done = true;
+        updates.doneAt = new Date().toISOString();
+        // Générer une intervention
+        try {
+          const parts = currentModalKey.split('_');
+          const ri = parseInt(parts[0].replace('r',''));
+          const li = parseInt(parts[1].replace('l',''));
+          const merged = getMergedLocataires();
+          const locEntry = merged.find(e => e.resIdx === ri && e.locIdx === li);
+          const locNom = locEntry ? locEntry.nom : currentModalKey;
+          const resNom = (RESIDENCES_DATA[ri] && RESIDENCES_DATA[ri].nom) || '';
+          const uid = 'interv_manual_' + Date.now() + '_' + currentModalKey;
+          db.ref(`lot2_interventions/${uid}`).set({
+            locNom, resNom, resIdx: ri, locIdx: li,
+            date: d,
+            type: 'Entretien annuel',
+            technicien: currentUser ? currentUser.email : '',
+            resultat: 'ok',
+            comment: c || 'Entretien réalisé',
+            createdAt: new Date().toISOString()
+          });
+        } catch(ex) { console.warn('Intervention non générée:', ex); }
+        db.ref(`lot2_locataires/${currentModalKey}`).update({
+          dateEntretienPrec: d,
+          dateProchainEntretien: updates.dateProchain,
+          dateEntretien2026: updates.dateProchain
+        });
+      }
+    } catch(e) {}
+  }
+  db.ref(`lot2/${currentModalKey}`).update(updates);
   closeModal();
-  showToast('💬 Commentaire enregistré !');
+  showToast('💬 Enregistré !');
 }
 
 function showToast(msg) {
@@ -2574,17 +2794,20 @@ let locOverrides = {}; // { 'r0_l5': {...fields}, 'new_abc': {...}, 'del_r0_l5':
 
 function startListeningLocOverrides() {
   db.ref('lot2_locataires').on('value', snap => {
-    locOverrides = snap.val() || {};
-    // Re-render si on est sur ces onglets
-    if (document.getElementById('tab-locataires').classList.contains('active')) renderLocatairesTable();
-    if (document.getElementById('tab-chaudieres').classList.contains('active')) renderChaudieresTable();
-    // Refresh accordéon aussi (pour le champ chaudière dans la vue résidences)
+    const firebaseOv = snap.val() || {};
+    locOverrides = {};
+    Object.entries(SEED_LOC_OVERRIDES || {}).forEach(([k, v]) => { locOverrides[k] = Object.assign({}, v); });
+    Object.entries(firebaseOv).forEach(([k, v]) => {
+      locOverrides[k] = Object.assign({}, locOverrides[k] || {}, v);
+    });
+    if (document.getElementById('tab-locataires')?.classList.contains('active')) renderLocatairesTable();
+    if (document.getElementById('tab-chaudieres')?.classList.contains('active')) renderChaudieresTable();
     renderAccordion();
   });
 }
 
 function getMergedLocataires() {
-  // Retourne la liste fusionnée: RESIDENCES_DATA + overrides Firebase
+  // Retourne la liste fusionnée: RESIDENCES_DATA + overrides Firebase + dbData
   let result = [];
   RESIDENCES_DATA.forEach((res, ri) => {
     res.locataires.forEach((loc, li) => {
@@ -2592,7 +2815,27 @@ function getMergedLocataires() {
       const delKey = `del_${key}`;
       if (locOverrides[delKey]) return; // supprimé
       const override = locOverrides[key] || {};
-      result.push({ ...loc, ...override, _resIdx: ri, _locIdx: li, _key: key, _resNom: res.nom, _isNew: false });
+      const db = dbData[key] || {};
+      // Calcul dateProchainEntretien: priorité locOverrides, puis dbData.dateProchain, puis dbData.date+1an
+      let dateProchainEntretien = override.dateProchainEntretien || '';
+      if (!dateProchainEntretien && db.dateProchain) {
+        dateProchainEntretien = db.dateProchain;
+      }
+      if (!dateProchainEntretien && db.done && db.date) {
+        try {
+          const d = new Date(db.date);
+          if (!isNaN(d.getTime())) {
+            const next = new Date(d);
+            next.setFullYear(next.getFullYear() + 1);
+            dateProchainEntretien = next.toISOString().slice(0, 10);
+          }
+        } catch(e) {}
+      }
+      result.push({
+        ...loc, ...override,
+        dateProchainEntretien: dateProchainEntretien || override.dateProchainEntretien || '',
+        _resIdx: ri, _locIdx: li, _key: key, _resNom: res.nom, _isNew: false
+      });
     });
   });
   // Ajouter les nouveaux locataires
@@ -2634,17 +2877,7 @@ function initLocModalSelects() {
     });
   }
   // Filtre résidences pour les tabs
-  ['locFilterRes','chaudFilterRes'].forEach(id => {
-    const sel = document.getElementById(id);
-    if (sel && sel.options.length <= 1) {
-      RESIDENCES_DATA.forEach((res, i) => {
-        const opt = document.createElement('option');
-        opt.value = i;
-        opt.textContent = res.nom;
-        sel.appendChild(opt);
-      });
-    }
-  });
+  // Searchable selects gérés par initAllSearchableSelects()
 }
 
 window.openLocModal = function(resIdx, locIdx, newKey) {
@@ -2954,12 +3187,22 @@ function getLocCity(resNom) {
  * Vert   : dans plus de 60 jours
  * Gris   : pas de date
  */
+// Formate une date ISO (YYYY-MM-DD ou datetime) en JJ/MM/AAAA
+function fmtDate(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  } catch(e) { return dateStr; }
+}
+
 function echeanceInfo(dateStr) {
   if (!dateStr) return { label: '—', cssClass: '', jours: null };
   const today = new Date(); today.setHours(0,0,0,0);
   const d = new Date(dateStr); d.setHours(0,0,0,0);
   const jours = Math.round((d - today) / 86400000);
-  const label = d.toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  const label = fmtDate(dateStr);
   if (jours < 0)  return { label, cssClass: 'echeance-late',  badgeClass: 'badge-late',  jours, txt: `En retard de ${-jours}j` };
   if (jours <= 30) return { label, cssClass: 'echeance-late',  badgeClass: 'badge-late',  jours, txt: `Dans ${jours}j ⚠️` };
   if (jours <= 60) return { label, cssClass: 'echeance-warn',  badgeClass: 'badge-warn',  jours, txt: `Dans ${jours}j` };
@@ -2975,7 +3218,7 @@ function echeanceBadge(dateStr) {
 function renderLocatairesTable() {
   initLocModalSelects();
   const q = (document.getElementById('locSearchInput')?.value || '').toLowerCase();
-  const riFilter = document.getElementById('locFilterRes')?.value;
+  const riFilter = ssGetValue('locFilterResWrap');
   const all = getMergedLocataires();
   let filtered = all.filter(loc => {
     if (riFilter !== '' && String(loc._resIdx) !== riFilter) return false;
@@ -3030,7 +3273,8 @@ function renderLocatairesTable() {
 
     // Statut entretien
     const k = `r${loc._resIdx}_l${loc._locIdx}`;
-    const done = dbData[k] && dbData[k].done;
+    const dEntry = dbData[k] || {};
+    const done = !!dEntry.done || !!(SEED_LOT2[k]?.done && dEntry.done !== false);
     const statusBadge = done
       ? `<span class="loc-status-badge loc-status-done">✅ Fait</span>`
       : `<span class="loc-status-badge loc-status-pending">En attente</span>`;
@@ -3158,7 +3402,7 @@ window.deleteChaudiere = function(key) {
 function renderChaudieresTable() {
   initLocModalSelects();
   const q = (document.getElementById('chaudSearchInput')?.value || '').toLowerCase();
-  const riFilter = document.getElementById('chaudFilterRes')?.value;
+  const riFilter = ssGetValue('chaudFilterResWrap');
 
   let entries = Object.entries(chaudData).map(([k, v]) => ({ ...v, _key: k }));
   if (riFilter !== '') entries = entries.filter(c => String(c.resIdx) === riFilter);
@@ -3240,8 +3484,16 @@ let intervData = {}; // toutes les interventions depuis Firebase
 let intervModalKey = null; // null = création, sinon clé à modifier
 
 function startListeningInterventions() {
+  // Pré-charger le SEED pour affichage immédiat
+  intervData = Object.assign({}, SEED_INTERVENTIONS);
+  if (document.getElementById('tab-interventions').classList.contains('active')) renderInterventionsTable();
+  const statEl = document.getElementById('statInterventions');
+  if (statEl) statEl.textContent = Object.keys(intervData).length;
+
   db.ref('lot2_interventions').on('value', snap => {
-    intervData = snap.val() || {};
+    const fbInterv = snap.val() || {};
+    // Fusionner : SEED + Firebase (Firebase écrase les mêmes clés)
+    intervData = Object.assign({}, SEED_INTERVENTIONS, fbInterv);
     if (document.getElementById('tab-interventions').classList.contains('active')) renderInterventionsTable();
     // Mettre à jour le dashboard
     const statEl = document.getElementById('statInterv');
@@ -3251,15 +3503,7 @@ function startListeningInterventions() {
 
 function initIntervSelects() {
   // Filtre résidence dans le tab interventions
-  const selRes = document.getElementById('intervFilterRes');
-  if (selRes && selRes.options.length <= 1) {
-    RESIDENCES_DATA.forEach((res, i) => {
-      const opt = document.createElement('option');
-      opt.value = i;
-      opt.textContent = res.nom;
-      selRes.appendChild(opt);
-    });
-  }
+  // Filtre résidence interventions géré par initAllSearchableSelects()
   // Select résidence dans la modale
   const modalRes = document.getElementById('intervResIdx');
   if (modalRes && modalRes.options.length === 0) {
@@ -3414,9 +3658,13 @@ const RESULTAT_COLORS = {
 };
 
 function renderInterventionsTable() {
+  // Garantir que le SEED est chargé
+  if (!intervData || Object.keys(intervData).length === 0) {
+    intervData = Object.assign({}, SEED_INTERVENTIONS);
+  }
   initIntervSelects();
   const q = (document.getElementById('intervSearchInput')?.value || '').toLowerCase();
-  const riFilter = document.getElementById('intervFilterRes')?.value;
+  const riFilter = ssGetValue('intervFilterResWrap');
   const period = document.getElementById('intervFilterPeriod')?.value;
 
   const now = new Date();
@@ -3493,7 +3741,7 @@ function renderInterventionsTable() {
     const resBg = RESULTAT_COLORS[d.resultat] || '#f9f9f9';
     const chaud = d.chaudiere ? `<span class="chaudiere-badge" style="font-size:10px">🔥 ${d.chaudiere}</span>` : '<span style="color:#ddd">—</span>';
     html += `<tr>
-      <td style="white-space:nowrap;font-weight:600">${d.date || '—'}</td>
+      <td style="white-space:nowrap;font-weight:600">${fmtDate(d.date)}</td>
       <td><b>${d.locNom || '—'}</b></td>
       <td style="font-size:12px;color:#555">${d.resNom || '—'}</td>
       <td style="font-size:12px">${d.type || '—'}</td>
@@ -3591,7 +3839,7 @@ document.getElementById('suiviModalOverlay').addEventListener('click', function(
 
 // ===================== VUE BAILLEUR =====================
 function openBailleurView() {
-  const riFilter = document.getElementById('locFilterRes')?.value;
+  const riFilter = ssGetValue('locFilterResWrap');
   const all = getMergedLocataires();
   const filtered = riFilter !== '' ? all.filter(l => String(l._resIdx) === riFilter) : all;
 
@@ -3610,7 +3858,8 @@ function openBailleurView() {
     let rows = '';
     locs.forEach(loc => {
       const k = 'r' + loc._resIdx + '_l' + loc._locIdx;
-      const done = (window.dbData?.[k] && window.dbData[k].done);
+      const d_b = dbData[k] || {};
+      const done = !!d_b.done || !!(SEED_LOT2[k]?.done && d_b.done !== false);
       const statut = done ? '✅ Fait' : '⏳ En attente';
       const s = suiviData[getSuiviKey(loc)] || {};
 
@@ -3676,7 +3925,7 @@ function openBailleurView() {
 <body>
 <div class="header">
   <div>
-    <h1>📋 Suivi Entretien Chaudière – LOT 1</h1>
+    <h1>📋 Suivi Entretien Chaudière – LOT 2 – Centre Provence</h1>
     <p style="margin:4px 0 0;font-size:12px;color:#555">${resLabel}</p>
   </div>
   <div class="meta">
@@ -3688,7 +3937,7 @@ function openBailleurView() {
   🖨️ <b>Vue Bailleur</b> — Document en lecture seule. <button onclick="window.print()" style="margin-left:12px;padding:4px 14px;background:#1a5276;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">🖨️ Imprimer / Exporter PDF</button>
 </div>
 ${tables}
-<div class="footer">Suivi Entretien Chaudière – LOT 1 Porte de Camargues &bull; Généré le ${now}</div>
+<div class="footer">Suivi Entretien Chaudière – LOT 2 Centre Provence &bull; Généré le ${now}</div>
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -3842,7 +4091,7 @@ function renderVmcTable() {
         <td style="font-weight:600">${d.emplacement || '—'}</td>
         <td>${d.marque || '—'}</td>
         <td style="font-size:11px;color:#666">${d.serie || '—'}</td>
-        <td style="white-space:nowrap">${d.dateDernier ? new Date(d.dateDernier).toLocaleDateString('fr-FR') : '—'}</td>
+        <td style="white-space:nowrap">${d.dateDernier ? fmtDate(d.dateDernier) : '—'}</td>
         <td style="white-space:nowrap">${echeanceBadge(d.date2026)}</td>
         <td style="white-space:nowrap">${echeanceBadge(d.dateProchain)}</td>
         <td style="font-size:12px">${d.technicien || '—'}</td>
