@@ -356,9 +356,7 @@ body.readonly .readonly-badge { display:flex !important }
         <h2>👤 Locataires</h2>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="text" id="locSearchInput" placeholder="🔍 Rechercher..." oninput="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;min-width:220px">
-          <select id="locFilterResWrap" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white);min-width:220px">
-            <option value="">Toutes les résidences</option>
-          </select>
+          <div class="ss-wrap" id="locFilterResWrap" style="min-width:220px"></div>
           <select id="locFilterStatut" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
             <option value="all">Tous les statuts</option>
             <option value="todo">⏳ Non réalisés</option>
@@ -884,19 +882,7 @@ function initAllSearchableSelects() {
     return t !== 'vmc';
   });
 
-  // Peupler le select résidence locataires
-  const locResEl = document.getElementById('locFilterResWrap');
-  if (locResEl) {
-    const prev = locResEl.value;
-    locResEl.innerHTML = '<option value="">Toutes les résidences</option>';
-    allOpts.forEach(opt => {
-      const o = document.createElement('option');
-      o.value = opt.value;
-      o.textContent = opt.label;
-      locResEl.appendChild(o);
-    });
-    locResEl.value = prev;
-  }
+  ssSetOptions('locFilterResWrap', allOpts, 'Toutes les résidences', () => renderLocatairesTable());
   ssSetOptions('equipFilterResWrap', vmcOpts, 'Toutes les résidences', () => renderEquipementsTable());
   ssSetOptions('chaudFilterResWrap', chaudOpts, 'Toutes les résidences', () => renderChaudieresTable());
   ssSetOptions('intervFilterResWrap', allOpts, 'Toutes les résidences', () => renderInterventionsTable());
@@ -3239,8 +3225,15 @@ function echeanceBadge(dateStr) {
 
 function renderLocatairesTable() {
   initLocModalSelects();
+  // Réinitialiser le filtre résidence si le div est vide
+  const wrap = document.getElementById('locFilterResWrap');
+  if (wrap && !wrap.querySelector('.ss-input') && RESIDENCES_DATA.length > 0) {
+    const allOpts = RESIDENCES_DATA.map((res, i) => ({ value: i, label: res.nom }));
+    ssSetOptions('locFilterResWrap', allOpts, 'Toutes les résidences', () => renderLocatairesTable());
+  }
+
   const q = (document.getElementById('locSearchInput')?.value || '').toLowerCase();
-  const riFilter = document.getElementById('locFilterResWrap')?.value || '';
+  const riFilter = ssGetValue('locFilterResWrap');
   const statutFilter = document.getElementById('locFilterStatut')?.value || 'all';
   const all = getMergedLocataires();
   let filtered = all.filter(loc => {
@@ -3886,7 +3879,7 @@ document.getElementById('suiviModalOverlay').addEventListener('click', function(
 
 // ===================== VUE BAILLEUR =====================
 function openBailleurView() {
-  const riFilter = document.getElementById('locFilterResWrap')?.value || '';
+  const riFilter = ssGetValue('locFilterResWrap');
   const all = getMergedLocataires();
   const filtered = riFilter !== '' ? all.filter(l => String(l._resIdx) === riFilter) : all;
 
