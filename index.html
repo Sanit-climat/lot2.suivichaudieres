@@ -296,6 +296,7 @@ body.readonly .readonly-badge { display:flex !important }
   <button class="tab-btn" onclick="showTab('chaudieres',this)">🔥 Chaudières</button>
   <button class="tab-btn" onclick="showTab('interventions',this)">🔧 Interventions</button>
   <button class="tab-btn" onclick="showTab('vmc',this)">💨 VMC Toiture</button>
+  <button class="tab-btn" onclick="showTab('parametres',this)" style="margin-left:auto">⚙️ Paramètres</button>
 </div>
 
 <main>
@@ -338,6 +339,8 @@ body.readonly .readonly-badge { display:flex !important }
         <option value="done">✅ Fait</option>
         <option value="todo">⏳ À faire</option>
       </select>
+      <div class="ss-wrap" id="filterResidenceWrap" style="min-width:240px"></div>
+      <button class="btn-add" onclick="openResModal()" style="white-space:nowrap">➕ Nouvelle résidence</button>
     </div>
     <div class="legend-bar">
   <strong style="margin-right:4px">Prestations :</strong>
@@ -431,7 +434,61 @@ body.readonly .readonly-badge { display:flex !important }
     </div>
     <div id="vmcContainer"></div>
   </div>
+
+  <!-- PARAMÈTRES -->
+  <div id="tab-parametres" class="tab-panel">
+    <div style="max-width:860px;margin:0 auto">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px">
+        <div>
+          <h2 style="font-size:18px;font-weight:700;color:var(--primary)">⚙️ Paramètres – Gestion des résidences</h2>
+          <p style="font-size:13px;color:#888;margin-top:2px">Ajoutez, modifiez ou supprimez les résidences du lot.</p>
+        </div>
+        <button class="btn-add" onclick="openResModal()">➕ Nouvelle résidence</button>
+      </div>
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:16px;font-size:12px;align-items:center;background:var(--white);padding:10px 16px;border-radius:10px;box-shadow:var(--shadow)">
+        <strong>Types :</strong>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#e67e22;border-radius:3px;display:inline-block"></span> Appareil + Ramonage + VMC</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#8e44ad;border-radius:3px;display:inline-block"></span> Appareil + VMC</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#2980b9;border-radius:3px;display:inline-block"></span> Appareil uniquement</span>
+        <span style="display:flex;align-items:center;gap:5px"><span style="width:12px;height:12px;background:#27ae60;border-radius:3px;display:inline-block"></span> VMC uniquement</span>
+      </div>
+      <div id="paramResContainer"></div>
+    </div>
+  </div>
 </main>
+</div>
+
+<!-- MODAL NOUVELLE RÉSIDENCE -->
+<div class="modal-overlay" id="resModalOverlay">
+<div class="modal modal-lg" style="max-width:520px;width:96%">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+    <h3 id="resModalTitle" style="margin-bottom:0">🏘️ Nouvelle résidence</h3>
+    <button onclick="closeResModal()" style="background:none;border:none;font-size:20px;cursor:pointer;color:#94a3b8;padding:4px 8px">✕</button>
+  </div>
+  <div class="loc-modal-grid">
+    <div class="form-field full">
+      <label>NOM DE LA RÉSIDENCE *</label>
+      <input type="text" id="resNom" placeholder="Ex: Les Pins – Martigues">
+    </div>
+    <div class="form-field full">
+      <label>TYPE DE PRESTATION *</label>
+      <select id="resType" style="padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white);color:var(--text)">
+        <option value="appar_ramon_vmc">🔥 Appareil de production + Ramonage + VMC</option>
+        <option value="appar_vmc">🟣 Appareil de production + VMC</option>
+        <option value="appar">🔵 Appareil de production uniquement</option>
+        <option value="vmc">💨 VMC uniquement</option>
+      </select>
+    </div>
+    <div class="form-field full">
+      <label>NOTES / OBSERVATIONS</label>
+      <textarea id="resNotes" placeholder="Informations complémentaires..." style="width:100%;padding:9px 12px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;resize:vertical;min-height:60px;outline:none;font-family:inherit"></textarea>
+    </div>
+  </div>
+  <div class="modal-btns">
+    <button class="btn-cancel" onclick="closeResModal()">Annuler</button>
+    <button class="btn-primary" id="resSaveBtn" onclick="saveResidence()">Créer la résidence</button>
+  </div>
+</div>
 </div>
 
 <!-- MODAL COMMENTAIRE -->
@@ -886,6 +943,8 @@ function initAllSearchableSelects() {
   ssSetOptions('equipFilterResWrap', vmcOpts, 'Toutes les résidences', () => renderEquipementsTable());
   ssSetOptions('chaudFilterResWrap', chaudOpts, 'Toutes les résidences', () => renderChaudieresTable());
   ssSetOptions('intervFilterResWrap', allOpts, 'Toutes les résidences', () => renderInterventionsTable());
+  // Filtre résidences dans l'onglet Résidences
+  ssSetOptions('filterResidenceWrap', allOpts, 'Toutes les résidences', () => applyFilter());
 }
 
 // ===================== FIREBASE CONFIG =====================
@@ -2386,6 +2445,9 @@ const RES_TYPES = {
   "Domaine de Beauprés 2 - Marignane":           "appar_vmc",
 };
 
+// VMC_COUNTS – Lot 2 (pas de VMC toiture numérotée, laisser vide)
+const VMC_COUNTS = {};
+
 // ===================== AUTH =====================
 auth.onAuthStateChanged(user => {
   document.getElementById('loader').style.display = 'none';
@@ -2450,6 +2512,29 @@ function startListening() {
     });
     renderAll();
   });
+  // Résidences supprimées (statiques)
+  db.ref('lot2_deleted_residences').on('value', snap => {
+    window._deletedResidences = snap.val() || {};
+    renderAll();
+  });
+  // Résidences personnalisées
+  db.ref('lot2_residences').on('value', snap => {
+    const fbRes = snap.val() || {};
+    for (let i = RESIDENCES_DATA.length - 1; i >= 0; i--) {
+      if (RESIDENCES_DATA[i]._fbKey) {
+        delete RES_TYPES[RESIDENCES_DATA[i].nom];
+        RESIDENCES_DATA.splice(i, 1);
+      }
+    }
+    Object.entries(fbRes).forEach(([key, r]) => {
+      if (!RESIDENCES_DATA.some(rd => rd.nom === r.nom)) {
+        RESIDENCES_DATA.push({ nom: r.nom, locataires: r.locataires || [], _fbKey: key });
+        RES_TYPES[r.nom] = r.type || 'appar_ramon_vmc';
+      }
+    });
+    renderAll();
+    initAllSearchableSelects();
+  });
 }
 
 function getKey(resIdx, locIdx) {
@@ -2460,11 +2545,13 @@ function getKey(resIdx, locIdx) {
 function renderAll() {
   renderAccordion();
   renderDashboard();
+  if (document.getElementById('tab-parametres')?.classList.contains('active')) renderParamResidences();
 }
 
 function renderDashboard() {
   let total = 0, done = 0;
   RESIDENCES_DATA.forEach((res, ri) => {
+    if (!res._fbKey && window._deletedResidences && window._deletedResidences[ri]) return;
     res.locataires.forEach((_, li) => {
       total++;
       const k = getKey(ri, li);
@@ -2490,6 +2577,7 @@ function renderDashboard() {
   const cont = document.getElementById('dashResidences');
   cont.innerHTML = '';
   RESIDENCES_DATA.forEach((res, ri) => {
+    if (!res._fbKey && window._deletedResidences && window._deletedResidences[ri]) return;
     const t = res.locataires.length;
     let d = 0;
     res.locataires.forEach((_, li) => {
@@ -2534,6 +2622,13 @@ function goToResidence(ri) {
 function renderAccordion() {
   const q = document.getElementById('searchInput').value.toLowerCase();
   const st = document.getElementById('filterStatus').value;
+  // Réinitialiser le filtre résidence si le div est vide
+  const wrapRes = document.getElementById('filterResidenceWrap');
+  if (wrapRes && !wrapRes.querySelector('.ss-input') && RESIDENCES_DATA.length > 0) {
+    const allOpts = RESIDENCES_DATA.map((res, i) => ({ value: i, label: res.nom }));
+    ssSetOptions('filterResidenceWrap', allOpts, 'Toutes les résidences', () => applyFilter());
+  }
+  const riFilter = ssGetValue('filterResidenceWrap');
   const cont = document.getElementById('accordionContainer');
   
   // Remember open state
@@ -2545,6 +2640,11 @@ function renderAccordion() {
   cont.innerHTML = '';
   
   RESIDENCES_DATA.forEach((res, ri) => {
+    // Masquer les résidences supprimées
+    if (!res._fbKey && window._deletedResidences && window._deletedResidences[ri]) return;
+    // Filtre par résidence
+    if (riFilter !== '' && String(ri) !== riFilter) return;
+
     let rows = '';
     let count = 0, shown = 0;
     res.locataires.forEach((loc, li) => {
@@ -2612,14 +2712,15 @@ function renderAccordion() {
       if (dbData[k] && dbData[k].done) doneRes++;
     });
     
+    const resType = RES_TYPES[res.nom] || 'appar_ramon_vmc';
     const div = document.createElement('div');
-    div.className = 'res-accordion res-type-' + (RES_TYPES[res.nom] || 'appar_ramon_vmc');
+    div.className = 'res-accordion res-type-' + resType;
     const isOpen = openStates[ri] !== undefined ? openStates[ri] : false;
     div.innerHTML = `
       <div class="res-header" onclick="toggleRes(this)">
         <div>
           <span class="res-title">${res.nom}</span>
-          <span class="res-count">(${shown > 0 && shown < totalRes ? shown + ' affichés / ' : ''}${totalRes} logements)</span>
+          <span class="res-count">(${shown > 0 && shown < totalRes ? shown + ' affichés / ' : ''}${totalRes} ${resType === 'vmc' ? 'équipements VMC' : 'logements'})</span>
         </div>
         <div class="res-stats">
           <span class="badge badge-done">${doneRes} ✅</span>
@@ -2653,6 +2754,153 @@ function renderAccordion() {
 
 function applyFilter() { renderAccordion(); }
 
+// ===================== PARAMÈTRES – RÉSIDENCES =====================
+const TYPE_LABELS = {
+  'appar_ramon_vmc': '🔥 Appareil + Ramonage + VMC',
+  'appar_vmc':       '🟣 Appareil + VMC',
+  'appar':           '🔵 Appareil uniquement',
+  'vmc':             '💨 VMC uniquement'
+};
+const TYPE_COLORS = {
+  'appar_ramon_vmc': '#e67e22',
+  'appar_vmc':       '#8e44ad',
+  'appar':           '#2980b9',
+  'vmc':             '#27ae60'
+};
+
+function renderParamResidences() {
+  const cont = document.getElementById('paramResContainer');
+  if (!cont) return;
+  let rows = '';
+  RESIDENCES_DATA.forEach((res, ri) => {
+    const isDeleted = !res._fbKey && window._deletedResidences && window._deletedResidences[ri];
+    const type = RES_TYPES[res.nom] || 'appar_ramon_vmc';
+    const color = TYPE_COLORS[type] || '#888';
+    const label = TYPE_LABELS[type] || type;
+    const nbLoc = res.locataires.length;
+    const isStatic = !res._fbKey;
+    const fbKey = res._fbKey || ('static_' + ri);
+    rows += `<tr style="${isDeleted ? 'opacity:.4;text-decoration:line-through' : ''}">
+      <td>
+        <span style="display:inline-block;width:10px;height:10px;background:${color};border-radius:2px;margin-right:6px"></span>
+        <strong>${res.nom}</strong>
+        ${isStatic ? '<span style="font-size:10px;background:#e8f4fd;color:#1a5276;padding:1px 6px;border-radius:8px;margin-left:6px">Statique</span>' : '<span style="font-size:10px;background:#d5f5e3;color:#27ae60;padding:1px 6px;border-radius:8px;margin-left:6px">Personnalisée</span>'}
+      </td>
+      <td style="color:#64748b;font-size:12px">${label}</td>
+      <td style="text-align:center;font-size:13px;color:#64748b">${nbLoc}</td>
+      <td style="text-align:right">
+        ${!isReadOnly && !isDeleted ? `
+          <button class="btn-sm btn-edit" onclick="openResModalEdit('${fbKey}','${res.nom.replace(/'/g,"\\'")}','${type}')" style="margin-right:4px">✏️ Modifier</button>
+          <button class="btn-sm btn-delete" onclick="deleteResidence('${fbKey}','${res.nom.replace(/'/g,"\\'")}')">🗑️ Supprimer</button>
+        ` : ''}
+        ${!isReadOnly && isDeleted ? `
+          <button class="btn-sm btn-ok" onclick="restoreResidence('${fbKey}','${res.nom.replace(/'/g,"\\'")}')">↩️ Restaurer</button>
+        ` : ''}
+      </td>
+    </tr>`;
+  });
+  cont.innerHTML = `
+    <div style="background:var(--white);border-radius:12px;box-shadow:var(--shadow);overflow:hidden">
+      <table style="width:100%;border-collapse:collapse;font-size:13px">
+        <thead>
+          <tr style="background:#f8fafc">
+            <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)">Résidence</th>
+            <th style="padding:12px 16px;text-align:left;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)">Type de prestation</th>
+            <th style="padding:12px 16px;text-align:center;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border)">Logements</th>
+            <th style="padding:12px 16px;border-bottom:2px solid var(--border)"></th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="4" style="text-align:center;color:#aaa;padding:30px">Aucune résidence.</td></tr>'}</tbody>
+      </table>
+      <p style="font-size:12px;color:#aaa;padding:10px 16px;text-align:right">${RESIDENCES_DATA.length} résidence(s) au total</p>
+    </div>`;
+}
+
+window.openResModal = function() {
+  if (isReadOnly) return;
+  window._editingResKey = null;
+  window._editingResNom = null;
+  document.getElementById('resModalTitle').textContent = '🏘️ Nouvelle résidence';
+  document.getElementById('resNom').value = '';
+  document.getElementById('resType').value = 'appar_ramon_vmc';
+  document.getElementById('resNotes').value = '';
+  document.getElementById('resSaveBtn').textContent = 'Créer la résidence';
+  document.getElementById('resModalOverlay').classList.add('open');
+};
+
+window.openResModalEdit = function(fbKey, nom, type) {
+  window._editingResKey = fbKey;
+  window._editingResNom = nom;
+  document.getElementById('resModalTitle').textContent = '✏️ Modifier la résidence';
+  document.getElementById('resNom').value = nom;
+  document.getElementById('resType').value = type;
+  document.getElementById('resNotes').value = '';
+  document.getElementById('resSaveBtn').textContent = 'Enregistrer';
+  document.getElementById('resModalOverlay').classList.add('open');
+};
+
+window.closeResModal = function() {
+  document.getElementById('resModalOverlay').classList.remove('open');
+  window._editingResKey = null;
+  window._editingResNom = null;
+};
+
+window.saveResidence = function() {
+  if (isReadOnly) return;
+  const nom = document.getElementById('resNom').value.trim();
+  if (!nom) { alert('Le nom de la résidence est obligatoire.'); return; }
+  const type = document.getElementById('resType').value;
+  const notes = document.getElementById('resNotes').value.trim();
+
+  if (window._editingResKey) {
+    const fbKey = window._editingResKey;
+    if (fbKey.startsWith('static_')) {
+      const ri = parseInt(fbKey.replace('static_', ''));
+      db.ref('lot2_res_overrides/' + ri).update({ nom, type, notes }).then(() => {
+        if (RESIDENCES_DATA[ri]) {
+          const oldNom = RESIDENCES_DATA[ri].nom;
+          RESIDENCES_DATA[ri].nom = nom;
+          RES_TYPES[nom] = type;
+          if (oldNom !== nom) delete RES_TYPES[oldNom];
+        }
+        renderAll(); initAllSearchableSelects(); renderParamResidences();
+        showToast('✅ Résidence modifiée !'); closeResModal();
+      });
+    } else {
+      db.ref('lot2_residences/' + fbKey).update({ nom, type, notes }).then(() => {
+        showToast('✅ Résidence modifiée !'); closeResModal();
+      });
+    }
+    return;
+  }
+
+  if (RESIDENCES_DATA.some(r => r.nom.toLowerCase() === nom.toLowerCase())) {
+    alert('Une résidence avec ce nom existe déjà.'); return;
+  }
+  const uid = Date.now().toString(36) + Math.random().toString(36).slice(2,5);
+  const key = 'res_' + uid;
+  db.ref('lot2_residences/' + key).set({ nom, type, notes, locataires: [], createdAt: new Date().toISOString() }).then(() => {
+    showToast('✅ Résidence « ' + nom + ' » créée !'); closeResModal();
+  });
+};
+
+window.deleteResidence = function(fbKey, nom) {
+  if (isReadOnly) return;
+  if (!confirm(`Supprimer la résidence « ${nom} » ? Cette action est irréversible.`)) return;
+  if (fbKey.startsWith('static_')) {
+    const ri = fbKey.replace('static_', '');
+    db.ref('lot2_deleted_residences/' + ri).set(true).then(() => showToast('🗑️ Résidence supprimée.'));
+  } else {
+    db.ref('lot2_residences/' + fbKey).remove().then(() => showToast('🗑️ Résidence supprimée.'));
+  }
+};
+
+window.restoreResidence = function(fbKey, nom) {
+  if (!confirm(`Restaurer la résidence « ${nom} » ?`)) return;
+  const ri = parseInt(fbKey.replace('static_', ''));
+  db.ref('lot2_deleted_residences/' + ri).remove().then(() => showToast('↩️ Résidence restaurée.'));
+};
+
 window.toggleRes = function(header) {
   const body = header.nextElementSibling;
   const ch = header.querySelector('.chevron');
@@ -2666,7 +2914,7 @@ window.showTab = function(tab, btn) {
   document.getElementById('tab-' + tab).classList.add('active');
   if (btn) btn.classList.add('active');
   else {
-    const idx = ['dashboard','residences','locataires','chaudieres','interventions'].indexOf(tab);
+    const idx = ['dashboard','residences','locataires','chaudieres','interventions','vmc','parametres'].indexOf(tab);
     const btns = document.querySelectorAll('.tab-btn');
     if (btns[idx]) btns[idx].classList.add('active');
   }
@@ -2675,6 +2923,7 @@ window.showTab = function(tab, btn) {
   if (tab === 'chaudieres') renderChaudieresTable();
   if (tab === 'interventions') renderInterventionsTable();
   if (tab === 'vmc') renderVmcTable();
+  if (tab === 'parametres') renderParamResidences();
 }
 
 // ===================== ACTIONS =====================
