@@ -297,6 +297,7 @@ body.readonly .readonly-badge { display:flex !important }
   <button class="tab-btn" onclick="showTab(&#39;interventions&#39;,this)">🔧 Interventions</button>
   <button class="tab-btn" onclick="showTab(&#39;vmc&#39;,this)">💨 VMC Toiture</button>
   <button class="tab-btn" onclick="showTab(&#39;attestations&#39;,this)">📄 Attestations</button>
+  <button class="tab-btn" onclick="showTab(&#39;courriers&#39;,this)">✉️ Courriers</button>
   <button class="tab-btn" onclick="showTab(&#39;parametres&#39;,this)" style="margin-left:auto">⚙️ Paramètres</button>
 </div>
 
@@ -23603,6 +23604,30 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
     <div id="attestationsTableContainer"></div>
   </div>
 
+  <!-- COURRIERS -->
+  <div id="tab-courriers" class="tab-panel">
+    <div class="toolbar" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px">
+      <div class="search-bar" style="margin-bottom:0;flex:1;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <input type="text" id="courrierSearchInput" placeholder="🔍 Rechercher locataire, résidence..." oninput="renderCourriersTable()" style="flex:1;min-width:220px">
+        <div class="ss-wrap" id="courrierFilterResWrap" style="min-width:220px"></div>
+        <select id="courrierFilterModele" onchange="renderCourriersTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
+          <option value="all">Tous les modèles</option>
+          <option value="information">💌 Information courtoise</option>
+          <option value="relance">📩 Relance simple</option>
+          <option value="lrar">⚠️ LRAR ferme</option>
+          <option value="mise_en_demeure">⛔ Mise en demeure</option>
+        </select>
+        <select id="courrierSortBy" onchange="renderCourriersTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
+          <option value="date_desc">Trier : Date récente ↓</option>
+          <option value="date_asc">Trier : Date ancienne ↑</option>
+          <option value="nom">Trier : Locataire A→Z</option>
+        </select>
+      </div>
+    </div>
+    <div id="courrierStatsContainer" style="margin-bottom:16px"></div>
+    <div id="courriersTableContainer"></div>
+  </div>
+
   <!-- PARAMÈTRES -->
   <div id="tab-parametres" class="tab-panel">
     <div style="max-width:860px;margin:0 auto">
@@ -26099,6 +26124,7 @@ window.showTab = function(tab, btn) {
   if (tab === 'interventions') renderInterventionsTable();
   if (tab === 'vmc') renderVmcTable();
   if (tab === 'parametres') renderParamResidences();
+  if (tab === 'courriers' && typeof renderCourriersTable === 'function') renderCourriersTable();
 }
 
 // ===================== ACTIONS =====================
@@ -29575,6 +29601,241 @@ window.openSuiviFromLocModal = function() {
   const key = 'r' + ri + '_l' + li;
   openSuiviModalV2(key, nom, ri, li);
 };
+
+
+// ============================================================
+// ============== ONGLET COURRIERS — VUE GLOBALE ==============
+// ============================================================
+
+// Extrait tous les courriers de tous les locataires en aplati
+function getAllCourriers() {
+  const all = [];
+  Object.entries(suiviData || {}).forEach(([suiviKey, s]) => {
+    if (!s || !Array.isArray(s.historique)) return;
+    s.historique.forEach((h, idx) => {
+      if (h.type !== 'courrier') return;
+      all.push({
+        ...h,
+        _suiviKey: suiviKey,
+        _historyIdx: idx,
+        _resIdx: s.resIdx !== undefined && s.resIdx !== null ? s.resIdx : null,
+        _locIdx: s.locIdx !== undefined && s.locIdx !== null ? s.locIdx : null
+      });
+    });
+  });
+  return all;
+}
+
+// Récupérer infos locataire complètes depuis suiviKey
+function getLocInfoFromSuiviKey(suiviKey, fallbackResIdx, fallbackLocIdx) {
+  let ri = fallbackResIdx, li = fallbackLocIdx;
+  // Si suiviKey commence par "r{X}_l{Y}", parser
+  const m = suiviKey.match(/^r(\d+)_l(\d+)$/);
+  if (m) { ri = parseInt(m[1]); li = parseInt(m[2]); }
+  if (ri === null || li === null || isNaN(ri) || isNaN(li)) return { nom: '—', adresse: '', batLgt: '', bailleur: '', resNom: '', ri: null, li: null };
+  const res = RESIDENCES_DATA[ri];
+  const loc = res?.locataires[li];
+  if (!loc) return { nom: '—', adresse: '', batLgt: '', bailleur: '', resNom: res?.nom || '', ri, li };
+  const over = (typeof locOverrides !== 'undefined') ? (locOverrides[`r${ri}_l${li}`] || {}) : {};
+  return {
+    nom: over.nom || loc.nom || '—',
+    adresse: over.adresse || loc.adresse || (res?.nom || ''),
+    batLgt: ((over.batiment || loc.batiment) ? (over.batiment || loc.batiment) + ' / ' : '') + ((over.lgt || loc.lgt) ? 'Lgt ' + (over.lgt || loc.lgt) : ''),
+    bailleur: over.bailleur || loc.bailleur || 'ERILIA',
+    resNom: res?.nom || '',
+    ri, li
+  };
+}
+
+// Init du filtre résidence
+function initCourrierResFilter() {
+  if (typeof RESIDENCES_DATA === 'undefined') return;
+  const wrap = document.getElementById('courrierFilterResWrap');
+  if (!wrap || wrap.querySelector('.ss-input')) return;
+  const allOpts = RESIDENCES_DATA.map((res, i) => ({ value: i, label: res.nom }));
+  if (typeof ssSetOptions === 'function') {
+    ssSetOptions('courrierFilterResWrap', allOpts, 'Toutes les résidences', () => renderCourriersTable());
+  }
+}
+
+window.renderCourriersTable = function() {
+  initCourrierResFilter();
+
+  const q = (document.getElementById('courrierSearchInput')?.value || '').toLowerCase();
+  const modeleF = document.getElementById('courrierFilterModele')?.value || 'all';
+  const sortBy = document.getElementById('courrierSortBy')?.value || 'date_desc';
+  const resF = (typeof _ssState !== 'undefined' && _ssState['courrierFilterResWrap']) ? _ssState['courrierFilterResWrap'].value : '';
+
+  let courriers = getAllCourriers();
+
+  // Enrichir avec infos locataire
+  courriers = courriers.map(c => {
+    const info = getLocInfoFromSuiviKey(c._suiviKey, c._resIdx, c._locIdx);
+    return { ...c, _locInfo: info };
+  });
+
+  // Filtrage
+  courriers = courriers.filter(c => {
+    if (resF !== '' && resF !== undefined && resF !== null) {
+      if (String(c._locInfo.ri) !== String(resF)) return false;
+    }
+    if (modeleF !== 'all' && c.modele !== modeleF) return false;
+    if (q) {
+      const hay = (c._locInfo.nom + ' ' + c._locInfo.adresse + ' ' + c._locInfo.resNom + ' ' + (c.modele || '') + ' ' + (c.note || '')).toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
+    return true;
+  });
+
+  // Tri
+  courriers.sort((a, b) => {
+    if (sortBy === 'date_desc') return (b.date || '').localeCompare(a.date || '');
+    if (sortBy === 'date_asc')  return (a.date || '').localeCompare(b.date || '');
+    if (sortBy === 'nom')       return (a._locInfo.nom || '').localeCompare(b._locInfo.nom || '');
+    return 0;
+  });
+
+  // Stats
+  const total = courriers.length;
+  const info = courriers.filter(c => c.modele === 'information').length;
+  const rel = courriers.filter(c => c.modele === 'relance').length;
+  const lrar = courriers.filter(c => c.modele === 'lrar').length;
+  const med = courriers.filter(c => c.modele === 'mise_en_demeure').length;
+  const avecEmail = courriers.filter(c => c.email).length;
+
+  document.getElementById('courrierStatsContainer').innerHTML = `<div style="display:flex;gap:12px;flex-wrap:wrap">
+    <div class="stat-card" style="flex:1;min-width:120px;padding:14px"><div class="val" style="font-size:24px">${total}</div><div class="lbl">Courriers</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;padding:14px;border-left-color:#94a3b8"><div class="val" style="font-size:24px;color:#64748b">${info}</div><div class="lbl">💌 Information</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;padding:14px;border-left-color:#e67e22"><div class="val" style="font-size:24px;color:#e67e22">${rel}</div><div class="lbl">📩 Relance</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;padding:14px;border-left-color:#c0392b"><div class="val" style="font-size:24px;color:#c0392b">${lrar}</div><div class="lbl">⚠️ LRAR</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;padding:14px;border-left-color:#7b241c"><div class="val" style="font-size:24px;color:#7b241c">${med}</div><div class="lbl">⛔ Mise en demeure</div></div>
+    <div class="stat-card" style="flex:1;min-width:120px;padding:14px;border-left-color:#2980b9"><div class="val" style="font-size:24px;color:#2980b9">${avecEmail}</div><div class="lbl">📧 Bailleur alerté</div></div>
+  </div>`;
+
+  const cont = document.getElementById('courriersTableContainer');
+  if (!courriers.length) {
+    cont.innerHTML = '<p style="text-align:center;color:#aaa;padding:30px">Aucun courrier émis. Les courriers seront listés ici dès qu\'ils sont générés depuis le journal d\'un locataire (onglet Locataires → bouton 📞 Journal).</p>';
+    return;
+  }
+
+  const modeleLabels = {
+    information: { lbl: '💌 Information', bg: '#f1f5f9', color: '#64748b' },
+    relance:     { lbl: '📩 Relance',     bg: '#fff3e0', color: '#e67e22' },
+    lrar:        { lbl: '⚠️ LRAR',         bg: '#fee2e2', color: '#c0392b' },
+    mise_en_demeure: { lbl: '⛔ Mise en demeure', bg: '#fde2e2', color: '#7b241c' }
+  };
+
+  let html = `<div class="table-wrap"><table>
+    <thead><tr>
+      <th>Date émission</th><th>Résidence</th><th>Locataire</th><th>Adresse / Lgt</th>
+      <th>Modèle</th><th>Email bailleur</th><th>Auteur</th>
+      <th style="width:200px">Actions</th>
+    </tr></thead><tbody>`;
+
+  courriers.forEach(c => {
+    const info = c._locInfo;
+    const mInfo = modeleLabels[c.modele] || { lbl: c.modele, bg: '#f1f5f9', color: '#64748b' };
+    const dateFmt = c.date ? new Date(c.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—';
+    const heureFmt = c.date ? new Date(c.date).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
+    const emailCell = c.email
+      ? `<a href="mailto:${c.email}" style="color:#2980b9;text-decoration:none;font-size:11px" title="Recontacter">${c.email}</a>`
+      : '<span style="color:#cbd5e1">—</span>';
+
+    html += `<tr>
+      <td style="white-space:nowrap;font-weight:600">${dateFmt}<br><span style="font-size:11px;color:#94a3b8;font-weight:400">${heureFmt}</span></td>
+      <td style="font-size:12px;color:#1a5276;font-weight:600">${info.resNom || '—'}</td>
+      <td><b>${info.nom}</b></td>
+      <td style="font-size:12px;color:#555">${info.adresse}${info.batLgt ? '<br><span style="font-size:11px;color:#888">' + info.batLgt + '</span>' : ''}</td>
+      <td><span style="background:${mInfo.bg};color:${mInfo.color};padding:3px 10px;border-radius:12px;font-size:11px;font-weight:700">${mInfo.lbl}</span></td>
+      <td style="font-size:11px">${emailCell}</td>
+      <td style="font-size:11px;color:#94a3b8">${c.auteur || '—'}</td>
+      <td style="white-space:nowrap">
+        <button class="btn-sm" onclick="regenererCourrier('${c._suiviKey}', ${c._historyIdx}, 'word')" title="Regénérer en Word" style="background:#1a5276;color:#fff">📄 W</button>
+        <button class="btn-sm" onclick="regenererCourrier('${c._suiviKey}', ${c._historyIdx}, 'pdf')" title="Regénérer en PDF" style="background:#c0392b;color:#fff;margin-left:3px">📄 P</button>
+        <button class="btn-sm" onclick="openJournalFromCourrier('${c._suiviKey}', '${info.nom.replace(/'/g,"\\'")}', ${info.ri}, ${info.li})" title="Voir le journal complet" style="background:#27ae60;color:#fff;margin-left:3px">📞</button>
+        <button class="btn-sm btn-delete" onclick="deleteCourrierEntry('${c._suiviKey}', ${c._historyIdx})" title="Supprimer cette trace" style="margin-left:3px">🗑️</button>
+      </td>
+    </tr>`;
+  });
+  const totalAll = getAllCourriers().length;
+  const filterActive = (resF !== '' && resF !== undefined && resF !== null) || modeleF !== 'all' || q;
+  const counterTxt = filterActive ? `${courriers.length} sur ${totalAll} courrier(s)` : `${courriers.length} courrier(s)`;
+  html += `</tbody></table></div><p style="font-size:12px;color:#aaa;margin-top:8px;text-align:right">${counterTxt}</p>`;
+  cont.innerHTML = html;
+};
+
+// Régénérer un courrier déjà émis (Word ou PDF)
+window.regenererCourrier = function(suiviKey, historyIdx, format) {
+  const s = suiviData[suiviKey];
+  if (!s || !Array.isArray(s.historique) || !s.historique[historyIdx]) {
+    showToast('⚠️ Courrier introuvable'); return;
+  }
+  const entry = s.historique[historyIdx];
+  const info = getLocInfoFromSuiviKey(suiviKey, entry._resIdx, entry._locIdx);
+  // Recompter les contacts au moment de l'émission (approximatif : tous les contacts avant ce courrier)
+  const before = s.historique
+    .filter(h => h !== entry && (h.date || '') <= (entry.date || '') && ['appel','sms','relance'].includes(h.type));
+  const nbContacts = before.length;
+
+  // Reconstruire le contexte attendu par genererCourrierWord/PDF
+  _courrierLocCtx = {
+    nom: info.nom,
+    adresse: info.adresse,
+    batLgt: info.batLgt,
+    bailleur: info.bailleur,
+    nbContacts: nbContacts,
+    key: suiviKey,
+    resIdx: info.ri,
+    locIdx: info.li
+  };
+  // Sélectionner temporairement le modèle utilisé à l'origine
+  const sel = document.getElementById('courrierModele');
+  const previousValue = sel.value;
+  sel.value = entry.modele || 'information';
+  if (format === 'word') {
+    genererCourrierWord();
+  } else {
+    genererCourrierPDF();
+  }
+  // Restaurer la valeur précédente (sans rouvrir la modale)
+  setTimeout(() => { sel.value = previousValue; _courrierLocCtx = null; }, 500);
+};
+
+// Ouvrir le journal d'un locataire depuis l'onglet Courriers
+window.openJournalFromCourrier = function(suiviKey, nom, ri, li) {
+  openSuiviModalV2(suiviKey, nom, ri, li);
+};
+
+// Supprimer une entrée de courrier
+window.deleteCourrierEntry = function(suiviKey, historyIdx) {
+  if (isReadOnly) return;
+  if (!confirm('Supprimer la trace de ce courrier dans le journal du locataire ?')) return;
+  const s = suiviData[suiviKey];
+  if (!s || !Array.isArray(s.historique)) return;
+  const historique = [...s.historique];
+  historique.splice(historyIdx, 1);
+  db.ref('lot2_suivi/' + suiviKey).update({
+    historique,
+    updatedAt: new Date().toISOString()
+  }).then(() => {
+    showToast('🗑️ Courrier supprimé du journal');
+    setTimeout(() => renderCourriersTable(), 200);
+  });
+};
+
+// Rafraîchissement auto quand un courrier est enregistré
+(function attachCourrierAutoRefresh() {
+  const tryAttach = () => {
+    if (typeof db === 'undefined') { setTimeout(tryAttach, 300); return; }
+    db.ref('lot2_suivi').on('value', () => {
+      const tabEl = document.getElementById('tab-courriers');
+      if (tabEl && tabEl.classList.contains('active') && typeof renderCourriersTable === 'function') {
+        renderCourriersTable();
+      }
+    });
+  };
+  tryAttach();
+})();
 
 
 
