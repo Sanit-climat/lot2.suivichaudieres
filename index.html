@@ -110,8 +110,8 @@ tr.todo td:first-child{border-left:3px solid var(--border)}
 .loc-status-done{background:#d1fae5;color:#059669}
 .loc-action-btn{padding:5px 12px;border:1px solid var(--border);background:var(--white);border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text);transition:all .2s}
 .loc-action-btn:hover{background:var(--primary);color:var(--white);border-color:var(--primary)}
-.loc-delete-btn{padding:5px 8px;border:none;background:none;cursor:pointer;color:#cbd5e1;font-size:14px;transition:color .2s;margin-left:4px}
-.loc-delete-btn:hover{color:var(--danger)}
+.loc-delete-btn{padding:5px 10px;border:1px solid #fca5a5;background:#fef2f2;cursor:pointer;color:#dc2626;font-size:13px;font-weight:600;border-radius:6px;transition:all .2s;margin-left:6px}
+.loc-delete-btn:hover{background:#dc2626;color:#fff;border-color:#dc2626}
 /* MODAL LOCATAIRE REDESIGN */
 .loc-modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
 .loc-modal-grid .full{grid-column:1/-1}
@@ -26785,7 +26785,7 @@ function renderLocatairesTable() {
       </td>
       <td>${statusBadge}</td>
       <td>
-        <button class="loc-action-btn" onclick="${editCall}">Modifier</button><button class="loc-delete-btn" onclick="${delCall}" title="Supprimer">✕</button>
+        <button class="loc-action-btn" onclick="${editCall}">✏️ Modifier</button><button class="loc-delete-btn" onclick="${delCall}" title="Supprimer ce locataire">🗑️ Supprimer</button>
       </td>
     </tr>`;
   });
@@ -27344,6 +27344,54 @@ function openBailleurView() {
 
   const RESULTAT_LABELS = { ok:'✅ Conforme', nok:'⚠️ Non conforme', rappel:'📅 Rappel', absent:'🚪 Absent', refuse:'❌ Refus', '':'—' };
 
+  // Helpers pour extraire les dates depuis l'historique V2
+  const fmtJJMM = (iso) => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '';
+  const COURRIER_LABELS_BAILLEUR = {
+    information: '💌 Info',
+    relance: '📩 Relance',
+    lrar: '⚠️ LRAR',
+    mise_en_demeure: '⛔ MED'
+  };
+  // Récupère toutes les dates d'un type donné dans l'historique
+  function datesByType(historique, type) {
+    if (!Array.isArray(historique)) return [];
+    return historique
+      .filter(h => h.type === type)
+      .map(h => h.date)
+      .filter(Boolean)
+      .sort();
+  }
+  // Affichage compact d'une liste de dates (multilignes)
+  function formatDateList(dates) {
+    if (!dates.length) return '<span style="color:#cbd5e1">—</span>';
+    return dates.map(d => fmtJJMM(d)).join('<br>');
+  }
+  // Affichage des courriers : modèle + date
+  function formatCourriers(historique) {
+    if (!Array.isArray(historique)) return '<span style="color:#cbd5e1">—</span>';
+    const courriers = historique
+      .filter(h => h.type === 'courrier')
+      .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!courriers.length) return '<span style="color:#cbd5e1">—</span>';
+    return courriers.map(c => {
+      const lbl = COURRIER_LABELS_BAILLEUR[c.modele] || '✉️';
+      return `<div style="font-size:10px;line-height:1.4"><b>${lbl}</b> ${fmtJJMM(c.date)}</div>`;
+    }).join('');
+  }
+  // Récupère les notes/remarques (anciennes + nouvelles)
+  function formatRemarques(s) {
+    if (!s) return '<span style="color:#cbd5e1">—</span>';
+    const parts = [];
+    if (s.remarque) parts.push(s.remarque); // ancien format
+    if (Array.isArray(s.historique)) {
+      s.historique.filter(h => h.type === 'note' && h.note).forEach(h => {
+        parts.push(h.note + ' (' + fmtJJMM(h.date) + ')');
+      });
+    }
+    if (!parts.length) return '<span style="color:#cbd5e1">—</span>';
+    return parts.map(p => `<div style="font-size:10px;margin-bottom:2px">${p}</div>`).join('');
+  }
+
   let tables = '';
   Object.entries(byRes).forEach(([resNom, locs]) => {
     let rows = '';
@@ -27368,6 +27416,25 @@ function openBailleurView() {
         intervCell = '—';
       }
 
+      // Extraction dates depuis historique V2 (fallback ancien format texte)
+      const appelDates = datesByType(s.historique, 'appel');
+      const smsDates = datesByType(s.historique, 'sms');
+      const relanceDates = datesByType(s.historique, 'relance');
+
+      // Compteur total contacts (pour visualisation rapide)
+      const totalContacts = appelDates.length + smsDates.length + relanceDates.length;
+      const badgeColor = totalContacts >= 3 ? '#c0392b' : (totalContacts > 0 ? '#e67e22' : '#cbd5e1');
+
+      // Cellules : si historique V2 vide, on tombe en fallback sur ancien texte
+      const cellAppel = appelDates.length ? formatDateList(appelDates) : (s.appel ? `<span style="font-size:10px;color:#94a3b8;font-style:italic">${s.appel}</span>` : '<span style="color:#cbd5e1">—</span>');
+      const cellSms = smsDates.length ? formatDateList(smsDates) : (s.sms ? `<span style="font-size:10px;color:#94a3b8;font-style:italic">${s.sms}</span>` : '<span style="color:#cbd5e1">—</span>');
+      const cellRelance = relanceDates.length ? formatDateList(relanceDates) : (s.relance ? `<span style="font-size:10px;color:#94a3b8;font-style:italic">${s.relance}</span>` : '<span style="color:#cbd5e1">—</span>');
+      const cellCourrier = formatCourriers(s.historique);
+      const cellRemarques = formatRemarques(s);
+      const cellTotal = totalContacts > 0
+        ? `<span style="background:${badgeColor};color:#fff;border-radius:10px;padding:2px 8px;font-weight:700;font-size:11px">${totalContacts}</span>`
+        : '<span style="color:#cbd5e1">0</span>';
+
       rows += `<tr>
         <td>${loc.ref || '—'}</td>
         <td><b>${loc.nom}</b></td>
@@ -27375,10 +27442,12 @@ function openBailleurView() {
         <td>${loc.tel || '—'}</td>
         <td>${statut}</td>
         <td>${intervCell}</td>
-        <td>${s.appel || '—'}</td>
-        <td>${s.sms || '—'}</td>
-        <td>${s.relance || '—'}</td>
-        <td style="font-size:11px">${s.remarque || '—'}</td>
+        <td style="text-align:center">${cellTotal}</td>
+        <td>${cellAppel}</td>
+        <td>${cellSms}</td>
+        <td>${cellRelance}</td>
+        <td>${cellCourrier}</td>
+        <td style="font-size:11px">${cellRemarques}</td>
       </tr>`;
     });
 
@@ -27388,7 +27457,7 @@ function openBailleurView() {
         <thead><tr>
           <th>Réf.</th><th>Locataire</th><th>Appt.</th><th>Tél.</th>
           <th>Statut entretien</th><th>Dernière intervention</th>
-          <th>Appel le</th><th>SMS le</th><th>Relance gest.</th><th>Remarques</th>
+          <th>Total contacts</th><th>Appels</th><th>SMS</th><th>Relances</th><th>Courriers</th><th>Remarques</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
