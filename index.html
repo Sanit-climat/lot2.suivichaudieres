@@ -23493,6 +23493,8 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
           <select id="locSortBy" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
             <option value="nom">Trier : Nom A→Z</option>
             <option value="nom_desc">Trier : Nom Z→A</option>
+            <option value="ref_asc">Trier : Réf. ↑</option>
+            <option value="ref_desc">Trier : Réf. ↓</option>
             <option value="res">Trier : Résidence</option>
             <option value="entretien_asc">Trier : Prochain entretien ↑</option>
             <option value="entretien_desc">Trier : Prochain entretien ↓</option>
@@ -26707,6 +26709,8 @@ function renderLocatairesTable() {
   filtered.sort((a, b) => {
     if (sortBy === 'nom')           return (a.nom||'').localeCompare(b.nom||'');
     if (sortBy === 'nom_desc')      return (b.nom||'').localeCompare(a.nom||'');
+    if (sortBy === 'ref_asc')       return (a.ref||'').localeCompare(b.ref||'', 'fr', { numeric: true, sensitivity: 'base' });
+    if (sortBy === 'ref_desc')      return (b.ref||'').localeCompare(a.ref||'', 'fr', { numeric: true, sensitivity: 'base' });
     if (sortBy === 'res')           return (a._resNom||'').localeCompare(b._resNom||'');
     if (sortBy === 'entretien_asc') return ((a.dateProchainEntretien||'9999') < (b.dateProchainEntretien||'9999') ? -1 : 1);
     if (sortBy === 'entretien_desc')return ((a.dateProchainEntretien||'') > (b.dateProchainEntretien||'') ? -1 : 1);
