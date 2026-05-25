@@ -23574,8 +23574,9 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
   <!-- ATTESTATIONS -->
   <div id="tab-attestations" class="tab-panel">
     <div class="toolbar" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px">
-      <div class="search-bar" style="margin-bottom:0;flex:1;display:flex;gap:10px;flex-wrap:wrap">
+      <div class="search-bar" style="margin-bottom:0;flex:1;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
         <input type="text" id="attSearchInput" placeholder="🔍 Rechercher locataire, résidence, n° série..." oninput="renderAttestationsTable()" style="flex:1;min-width:220px">
+        <div class="ss-wrap" id="attFilterResWrap" style="min-width:220px"></div>
         <select id="attFilterStatut" onchange="renderAttestationsTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
           <option value="all">Tous statuts</option>
           <option value="ok">🟢 Conforme</option>
@@ -23764,9 +23765,12 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
     </div>
   </div>
 
-  <div class="modal-btns">
-    <button class="btn-cancel" onclick="closeLocModal()">Annuler</button>
-    <button class="btn-primary" onclick="saveLocataire()">Enregistrer</button>
+  <div class="modal-btns" style="display:flex;justify-content:space-between;align-items:center">
+    <button class="btn-add" onclick="openSuiviFromLocModal()" style="background:#1a5276">📞 Journal des contacts</button>
+    <div style="display:flex;gap:8px">
+      <button class="btn-cancel" onclick="closeLocModal()">Annuler</button>
+      <button class="btn-primary" onclick="saveLocataire()">Enregistrer</button>
+    </div>
   </div>
 </div>
 </div>
@@ -24110,6 +24114,10 @@ function initAllSearchableSelects() {
   ssSetOptions('equipFilterResWrap', vmcOpts, 'Toutes les résidences', () => renderEquipementsTable());
   ssSetOptions('chaudFilterResWrap', chaudOpts, 'Toutes les résidences', () => renderChaudieresTable());
   ssSetOptions('intervFilterResWrap', allOpts, 'Toutes les résidences', () => renderInterventionsTable());
+  // Filtre résidence onglet Attestations
+  if (document.getElementById('attFilterResWrap')) {
+    ssSetOptions('attFilterResWrap', allOpts, 'Toutes les résidences', () => renderAttestationsTable());
+  }
   // Filtre résidences dans l'onglet Résidences
   ssSetOptions('filterResidenceWrap', allOpts, 'Toutes les résidences', () => applyFilter());
 }
@@ -28680,10 +28688,15 @@ function renderAttestationsTable() {
   const statutF = document.getElementById('attFilterStatut')?.value || 'all';
   const echF = document.getElementById('attFilterEcheance')?.value || 'all';
   const sortBy = document.getElementById('attSortBy')?.value || 'date_desc';
+  // Filtre résidence (via _ssState rempli par ssSetOptions)
+  const resF = (typeof _ssState !== 'undefined' && _ssState['attFilterResWrap']) ? _ssState['attFilterResWrap'].value : '';
 
   let entries = Object.entries(attData).map(([k, v]) => ({ ...v, _key: k }));
 
   entries = entries.filter(d => {
+    if (resF !== '' && resF !== undefined && resF !== null) {
+      if (String(d.resIdx) !== String(resF)) return false;
+    }
     if (statutF !== 'all' && d.statut !== statutF) return false;
     if (echF !== 'all') {
       const j = attJoursRestants(d.dateEcheance);
@@ -28692,7 +28705,8 @@ function renderAttestationsTable() {
       if (echF === 'valid' && (j === null || j <= 30)) return false;
     }
     if (q) {
-      const hay = ((d.locNom||'') + (d.adresse||'') + (d.chaudSerie||'') + (d.chaudMarque||'') + (d.refDossier||'')).toLowerCase();
+      const resNom = (d.resIdx !== undefined && d.resIdx !== null) ? (RESIDENCES_DATA[d.resIdx]?.nom || '') : '';
+      const hay = ((d.locNom||'') + (d.adresse||'') + (d.chaudSerie||'') + (d.chaudMarque||'') + (d.refDossier||'') + resNom).toLowerCase();
       if (!hay.includes(q)) return false;
     }
     return true;
@@ -28729,7 +28743,7 @@ function renderAttestationsTable() {
 
   let html = `<div class="table-wrap"><table>
     <thead><tr>
-      <th>Date</th><th>Locataire</th><th>Adresse / Lgt</th><th>Chaudière</th>
+      <th>Date</th><th>Résidence</th><th>Locataire</th><th>Adresse / Lgt</th><th>Chaudière</th>
       <th>CO amb.</th><th>CO fum.</th><th>Rdt</th>
       <th>Statut</th><th>Échéance</th><th>Drive</th>
       <th style="width:160px">Actions</th>
@@ -28747,8 +28761,13 @@ function renderAttestationsTable() {
       ? `<a href="${d.driveLink}" target="_blank" style="color:#1a5276;font-weight:600;text-decoration:none" title="Ouvrir dans Drive">🔗 Ouvrir</a>`
       : '<span style="color:#ccc">—</span>';
 
+    const resNom = (d.resIdx !== undefined && d.resIdx !== null && RESIDENCES_DATA[d.resIdx])
+      ? RESIDENCES_DATA[d.resIdx].nom
+      : '<span style="color:#ccc">—</span>';
+
     html += `<tr>
       <td style="white-space:nowrap;font-weight:600">${fmtDate(d.dateEntretien)}</td>
+      <td style="font-size:12px;color:#1a5276;font-weight:600">${resNom}</td>
       <td><b>${d.locNom || '—'}</b></td>
       <td style="font-size:12px;color:#555">${(d.adresse||'')}${d.batLgt ? '<br><span style="font-size:11px;color:#888">'+d.batLgt+'</span>' : ''}</td>
       <td style="font-size:12px">${d.chaudMarque || ''} ${d.chaudModele || ''}<br><span style="font-size:11px;color:#888">${d.chaudSerie || ''}</span></td>
@@ -28766,7 +28785,12 @@ function renderAttestationsTable() {
       </td>
     </tr>`;
   });
-  html += `</tbody></table></div><p style="font-size:12px;color:#aaa;margin-top:8px;text-align:right">${entries.length} attestation(s)</p>`;
+  const totalAll = Object.keys(attData).length;
+  const filterActive = (resF !== '' && resF !== undefined && resF !== null) || statutF !== 'all' || echF !== 'all' || q;
+  const counterTxt = filterActive
+    ? `${entries.length} sur ${totalAll} attestation(s)`
+    : `${entries.length} attestation(s)`;
+  html += `</tbody></table></div><p style="font-size:12px;color:#aaa;margin-top:8px;text-align:right">${counterTxt}</p>`;
   cont.innerHTML = html;
 }
 window.renderAttestationsTable = renderAttestationsTable;
@@ -28879,6 +28903,680 @@ window.exportRelancesCSV = function() {
   };
   tryStart();
 })();
+
+
+/* ============================================================
+   ============== SUIVI CONTACT V2 — JOURNAL ENRICHI ==========
+   ============================================================
+   - Compte appels + SMS + relances pour déclencher alerte à 3
+   - Journal horodaté de tous les contacts
+   - Génération courrier (3 modèles)
+   - Email bailleur au déclenchement
+   - Compatible avec les anciennes données suivi (champs texte simples)
+   ============================================================ */
+
+// ---- Seuil d'alerte ----
+const SUIVI_SEUIL_COURRIER = 3;
+
+// ---- Helper de comptage ----
+function suiviCountContacts(s) {
+  // Compte uniquement les entrées de type appel / sms / relance dans l'historique
+  if (!s || !Array.isArray(s.historique)) return 0;
+  return s.historique.filter(h => ['appel', 'sms', 'relance'].includes(h.type)).length;
+}
+
+function suiviCourrierEmis(s) {
+  if (!s || !Array.isArray(s.historique)) return null;
+  // Dernier courrier émis
+  const courriers = s.historique.filter(h => h.type === 'courrier').sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  return courriers[0] || null;
+}
+
+// ---- Nouvelle cellule SUIVI CONTACT (remplace l'ancienne) ----
+function buildSuiviCellV2(loc) {
+  const key = getSuiviKey(loc);
+  const s = suiviData[key] || {};
+  const count = suiviCountContacts(s);
+  const courrier = suiviCourrierEmis(s);
+  // Pour compat ascendante : si les anciens champs texte sont remplis mais pas d'historique → on les affiche aussi
+  const legacyAppel = s.appel || '';
+  const legacySms = s.sms || '';
+  const legacyRelance = s.relance || '';
+  const hasLegacy = (legacyAppel || legacySms || legacyRelance) && !Array.isArray(s.historique);
+
+  // Dernier contact dans l'historique
+  let dernier = '';
+  if (Array.isArray(s.historique) && s.historique.length) {
+    const sorted = [...s.historique].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    const last = sorted[0];
+    const icons = { appel: '📞', sms: '💬', relance: '📋', courrier: '✉️', note: '🗒️' };
+    dernier = `<div class="suivi-line"><span class="label">${icons[last.type] || '·'} ${last.type}</span><span class="val">${last.date ? new Date(last.date).toLocaleDateString('fr-FR') : ''}</span></div>`;
+  }
+
+  // Badge compteur + alerte courrier
+  let badge = '';
+  if (count >= SUIVI_SEUIL_COURRIER && !courrier) {
+    badge = `<div style="background:#fee2e2;border:1px solid #c0392b;border-radius:6px;padding:4px 8px;margin-top:4px">
+      <div style="font-size:11px;color:#c0392b;font-weight:700">⚠️ ${count} contacts — Courrier requis</div>
+    </div>`;
+  } else if (courrier) {
+    badge = `<div style="background:#dbeafe;border:1px solid #1a5276;border-radius:6px;padding:4px 8px;margin-top:4px">
+      <div style="font-size:11px;color:#1a5276;font-weight:700">✉️ Courrier envoyé le ${new Date(courrier.date).toLocaleDateString('fr-FR')}</div>
+    </div>`;
+  } else if (count > 0) {
+    badge = `<div style="font-size:11px;color:#64748b;margin-top:2px">${count} contact${count > 1 ? 's' : ''} (alerte à ${SUIVI_SEUIL_COURRIER})</div>`;
+  }
+
+  // Fallback legacy : afficher les anciennes infos
+  let legacyHtml = '';
+  if (hasLegacy) {
+    legacyHtml = `<div style="font-size:11px;color:#94a3b8;margin-top:4px;font-style:italic">Ancien suivi : ${[legacyAppel && '📞', legacySms && '💬', legacyRelance && '📋'].filter(Boolean).join(' ')}</div>`;
+  }
+
+  return `<div>
+    <div style="font-size:11px;color:#64748b;margin-bottom:2px">Contacts (appels+SMS+relances) :</div>
+    <div style="font-size:18px;font-weight:700;color:${count >= SUIVI_SEUIL_COURRIER ? '#c0392b' : (count > 0 ? '#e67e22' : '#94a3b8')}">${count}</div>
+    ${dernier}
+    ${badge}
+    ${legacyHtml}
+    <button class="suivi-edit-btn" onclick="openSuiviModalV2('${key}',this.dataset.nom,'${loc._resIdx !== undefined ? loc._resIdx : ''}','${loc._locIdx !== undefined ? loc._locIdx : ''}')" data-nom="${loc.nom.replace(/"/g, '&quot;')}" style="margin-top:6px">✏️ Journal</button>
+  </div>`;
+}
+
+// Patch transparent : remplacer buildSuiviCell par la V2
+window.buildSuiviCell = buildSuiviCellV2;
+
+// ============================================================
+// ============== MODALE JOURNAL DE CONTACT ===================
+// ============================================================
+let _suiviV2Key = null;
+let _suiviV2Loc = { nom: '', resIdx: null, locIdx: null };
+
+window.openSuiviModalV2 = function(key, nomLoc, resIdx, locIdx) {
+  _suiviV2Key = key;
+  _suiviV2Loc = {
+    nom: nomLoc,
+    resIdx: resIdx !== '' && resIdx !== undefined ? parseInt(resIdx) : null,
+    locIdx: locIdx !== '' && locIdx !== undefined ? parseInt(locIdx) : null
+  };
+  document.getElementById('suiviV2LocName').textContent = nomLoc;
+  renderSuiviV2Journal();
+  // Reset les champs ajout
+  document.getElementById('suiviV2NewType').value = 'appel';
+  document.getElementById('suiviV2NewDate').value = new Date().toISOString().slice(0, 16);
+  document.getElementById('suiviV2NewNote').value = '';
+  document.getElementById('suiviV2ModalOverlay').classList.add('open');
+};
+
+window.closeSuiviV2Modal = function() {
+  document.getElementById('suiviV2ModalOverlay').classList.remove('open');
+  _suiviV2Key = null;
+};
+
+function renderSuiviV2Journal() {
+  const s = suiviData[_suiviV2Key] || {};
+  const historique = Array.isArray(s.historique) ? [...s.historique] : [];
+  const count = suiviCountContacts(s);
+  const courrier = suiviCourrierEmis(s);
+
+  // Banner d'alerte en haut
+  let banner = '';
+  if (count >= SUIVI_SEUIL_COURRIER && !courrier) {
+    banner = `<div style="background:#fee2e2;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:700;color:#c0392b;font-size:14px;margin-bottom:6px">⚠️ Seuil de ${SUIVI_SEUIL_COURRIER} contacts atteint (${count})</div>
+      <div style="font-size:12px;color:#7f1d1d;margin-bottom:8px">L'envoi d'un courrier au locataire est désormais requis pour formaliser la démarche.</div>
+      <button class="btn-add" onclick="openCourrierModal()" style="background:#c0392b;width:100%">✉️ Générer le courrier de relance</button>
+    </div>`;
+  } else if (courrier) {
+    banner = `<div style="background:#dbeafe;border:2px solid #1a5276;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+      <div style="font-weight:700;color:#1a5276;font-size:14px;margin-bottom:4px">✉️ Courrier ${courrier.modele || 'de relance'} envoyé</div>
+      <div style="font-size:12px;color:#1e3a5f">Date d'envoi : <b>${new Date(courrier.date).toLocaleDateString('fr-FR')}</b>${courrier.email ? ' · Email bailleur envoyé' : ''}</div>
+      <button class="btn-add" onclick="openCourrierModal()" style="background:#1a5276;width:100%;margin-top:8px">✉️ Générer un nouveau courrier</button>
+    </div>`;
+  } else if (count > 0) {
+    banner = `<div style="background:#fff3e0;border:1px solid #e67e22;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#7c2d12;font-size:12px">
+      ${count} contact${count > 1 ? 's' : ''} enregistré${count > 1 ? 's' : ''} · Alerte courrier déclenchée à partir de <b>${SUIVI_SEUIL_COURRIER}</b>.
+    </div>`;
+  }
+
+  // Tableau journal
+  const icons = { appel: '📞', sms: '💬', relance: '📋', courrier: '✉️', note: '🗒️' };
+  const labels = { appel: 'Appel', sms: 'SMS', relance: 'Relance', courrier: 'Courrier', note: 'Note' };
+  let rowsHtml = '';
+  historique
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+    .forEach((h, idx) => {
+      const realIdx = s.historique.indexOf(h);
+      rowsHtml += `<tr>
+        <td style="white-space:nowrap;font-size:12px;color:#475569">${h.date ? new Date(h.date).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+        <td style="font-size:13px"><b>${icons[h.type] || '·'} ${labels[h.type] || h.type}</b></td>
+        <td style="font-size:12px;color:#475569">${h.note || '—'}</td>
+        <td style="font-size:11px;color:#94a3b8">${h.auteur || '—'}</td>
+        <td style="text-align:center">
+          <button class="btn-sm btn-delete" onclick="deleteSuiviEntry(${realIdx})" title="Supprimer cette entrée" style="padding:3px 8px">×</button>
+        </td>
+      </tr>`;
+    });
+
+  const journalHtml = historique.length
+    ? `<div class="table-wrap" style="max-height:280px;overflow-y:auto"><table>
+        <thead><tr><th style="width:130px">Date/heure</th><th style="width:90px">Type</th><th>Note</th><th style="width:120px">Auteur</th><th style="width:50px"></th></tr></thead>
+        <tbody>${rowsHtml}</tbody>
+      </table></div>`
+    : '<p style="text-align:center;color:#aaa;padding:20px;font-size:13px">Aucun contact enregistré pour ce locataire.</p>';
+
+  document.getElementById('suiviV2BannerContainer').innerHTML = banner;
+  document.getElementById('suiviV2JournalContainer').innerHTML = journalHtml;
+}
+
+window.addSuiviEntry = function() {
+  if (isReadOnly) { showToast('🔒 Lecture seule'); return; }
+  if (!_suiviV2Key) return;
+  const type = document.getElementById('suiviV2NewType').value;
+  const date = document.getElementById('suiviV2NewDate').value;
+  const note = document.getElementById('suiviV2NewNote').value.trim();
+  if (!date) { showToast('⚠️ Date obligatoire'); return; }
+  const entry = {
+    type,
+    date: new Date(date).toISOString(),
+    note,
+    auteur: currentUser?.email || '',
+    createdAt: new Date().toISOString()
+  };
+  const s = suiviData[_suiviV2Key] || {};
+  const historique = Array.isArray(s.historique) ? [...s.historique] : [];
+  historique.push(entry);
+  db.ref('lot2_suivi/' + _suiviV2Key).update({
+    historique,
+    resIdx: _suiviV2Loc.resIdx,
+    locIdx: _suiviV2Loc.locIdx,
+    updatedAt: new Date().toISOString(),
+    updatedBy: currentUser?.email || ''
+  }).then(() => {
+    showToast('✅ ' + type + ' ajouté au journal');
+    document.getElementById('suiviV2NewNote').value = '';
+    // L'écoute Firebase rafraîchira automatiquement
+    setTimeout(() => renderSuiviV2Journal(), 200);
+  });
+};
+
+window.deleteSuiviEntry = function(idx) {
+  if (isReadOnly) return;
+  if (!confirm('Supprimer cette entrée du journal ?')) return;
+  const s = suiviData[_suiviV2Key] || {};
+  if (!Array.isArray(s.historique)) return;
+  const historique = [...s.historique];
+  historique.splice(idx, 1);
+  db.ref('lot2_suivi/' + _suiviV2Key).update({
+    historique,
+    updatedAt: new Date().toISOString()
+  }).then(() => {
+    showToast('🗑️ Entrée supprimée');
+    setTimeout(() => renderSuiviV2Journal(), 200);
+  });
+};
+
+// ============================================================
+// ============== MODALE GÉNÉRATION COURRIER ==================
+// ============================================================
+const COURRIER_MODELES = {
+  information: {
+    titre: 'Courrier d\'information courtoise',
+    objet: 'Prise de rendez-vous pour l\'entretien annuel de votre chaudière',
+    ton: 'neutre',
+    texte: `Notre société, SANIT CLIMAT, est en charge de l'entretien annuel des chaudières à gaz dans votre résidence pour le compte de votre bailleur.
+
+À ce titre, nous souhaitons convenir avec vous d'un rendez-vous afin de procéder à l'entretien de la chaudière équipant votre logement.
+
+Nos services ont tenté de vous joindre à plusieurs reprises (par téléphone et/ou SMS) sans pouvoir échanger avec vous. Il est possible que vous n'ayez pas reçu nos messages, c'est pourquoi nous vous adressons ce courrier.
+
+Pour fixer ensemble une date et un horaire qui vous conviennent, vous pouvez nous joindre directement :
+
+📞 Ligne dédiée prise de rendez-vous entretien chaudière :
+07 60 05 67 96
+Du lundi au vendredi, de 8h à 17h
+
+L'intervention dure en moyenne 45 minutes et est entièrement prise en charge dans le cadre du contrat d'entretien souscrit par votre bailleur. Aucun frais ne vous sera demandé.
+
+Nous vous remercions par avance de votre retour et restons à votre disposition pour toute question.`
+  },
+  relance: {
+    titre: 'Courrier de relance simple',
+    objet: 'Entretien annuel obligatoire de votre chaudière à gaz',
+    ton: 'modéré',
+    texte: `Nous nous permettons de vous contacter au sujet de l'entretien annuel obligatoire de la chaudière à gaz équipant votre logement.
+
+Conformément au décret n°2009-649 du 9 juin 2009 modifié par le décret n°2023-444 du 7 juin 2023, l'entretien annuel des chaudières dont la puissance est comprise entre 4 et 400 kW est obligatoire et doit être réalisé chaque année par un professionnel qualifié.
+
+Malgré nos {NB_CONTACTS} tentatives de prise de rendez-vous (par téléphone et/ou SMS), nous n'avons pas pu, à ce jour, programmer cette intervention.
+
+Aussi, nous vous remercions de bien vouloir nous contacter dans les meilleurs délais afin de convenir ensemble d'une date et d'un horaire qui vous conviennent :
+
+📞 Ligne dédiée prise de rendez-vous entretien chaudière :
+07 60 05 67 96
+Du lundi au vendredi, de 8h à 17h
+
+Nous restons à votre entière disposition pour toute information complémentaire.`
+  },
+  lrar: {
+    titre: 'Lettre recommandée AR — ton ferme',
+    objet: 'MISE EN DEMEURE — Entretien annuel de la chaudière (LRAR)',
+    ton: 'ferme',
+    texte: `Nous faisons suite à nos différentes tentatives de prise de contact avec vous, restées à ce jour sans réponse de votre part, en vue de procéder à l'entretien annuel obligatoire de la chaudière à gaz équipant votre logement.
+
+Nous vous rappelons que cet entretien est rendu obligatoire par les dispositions du décret n°2009-649 du 9 juin 2009 modifié par le décret n°2023-444 du 7 juin 2023, et qu'il incombe à l'occupant du logement, conformément à l'article R.224-41-4 du Code de l'environnement, sauf disposition contraire prévue par votre bail.
+
+Nos services ont déjà tenté de vous joindre à {NB_CONTACTS} reprises (appels téléphoniques et/ou SMS) sans pouvoir obtenir de rendez-vous.
+
+Par la présente lettre recommandée avec accusé de réception, nous vous mettons donc en demeure de bien vouloir prendre rendez-vous avec nos services dans un délai de quinze (15) jours à compter de la réception du présent courrier, en composant le numéro suivant :
+
+📞 Ligne dédiée prise de rendez-vous entretien chaudière :
+07 60 05 67 96
+Du lundi au vendredi, de 8h à 17h
+
+À défaut de réponse de votre part dans ce délai, nous serons contraints de transmettre votre dossier à votre bailleur, qui pourra engager toute procédure utile, notamment au titre de la sécurité des occupants de l'immeuble et au regard de vos obligations contractuelles.
+
+Nous regrettons d'avoir à recourir à cette démarche et restons à votre disposition pour fixer un rendez-vous dès réception du présent courrier.`
+  },
+  mise_en_demeure: {
+    titre: 'Mise en demeure formelle (Code de la construction)',
+    objet: 'MISE EN DEMEURE — Manquement à l\'obligation d\'entretien chaudière',
+    ton: 'formel',
+    texte: `OBJET : MISE EN DEMEURE — Obligation d'entretien annuel de la chaudière à gaz
+
+Nous intervenons en qualité de prestataire mandaté par votre bailleur pour l'entretien annuel obligatoire des chaudières à gaz équipant son patrimoine.
+
+À ce titre, nous sommes tenus de réaliser annuellement l'entretien de la chaudière équipant votre logement, conformément aux dispositions suivantes :
+
+— Décret n°2009-649 du 9 juin 2009 relatif à l'entretien annuel des chaudières dont la puissance nominale est comprise entre 4 et 400 kilowatts, modifié par le décret n°2023-444 du 7 juin 2023 ;
+— Arrêté du 15 septembre 2009 modifié relatif à l'entretien annuel des chaudières ;
+— Articles R.224-41-4 et suivants du Code de l'environnement.
+
+L'obligation d'entretien incombe à l'occupant du logement, sauf clauses contraires du bail. Le non-respect de cette obligation est susceptible d'engager votre responsabilité civile et pénale en cas d'incident (intoxication au monoxyde de carbone, explosion, sinistre incendie).
+
+Nos services ont effectué {NB_CONTACTS} tentatives de prise de rendez-vous (appels téléphoniques et/ou SMS) consignées dans nos registres, sans succès à ce jour.
+
+Par le présent courrier, nous vous METTONS EN DEMEURE, dans un délai de QUINZE (15) JOURS à compter de la réception de cette lettre, de :
+
+1. Prendre attache avec nos services pour fixer un rendez-vous, en composant le numéro dédié indiqué ci-dessous ;
+2. Convenir d'une date d'intervention pour l'entretien annuel.
+
+📞 Ligne dédiée prise de rendez-vous entretien chaudière :
+07 60 05 67 96
+Du lundi au vendredi, de 8h à 17h
+
+À défaut, nous serons dans l'obligation de signaler le manquement à votre bailleur, qui pourra à son tour engager toute procédure utile à votre encontre.
+
+Nous demeurons à votre entière disposition pour toute information complémentaire et restons dans l'attente de votre rapide retour.`
+  }
+};
+
+let _courrierLocCtx = null;
+
+window.openCourrierModal = function() {
+  if (!_suiviV2Key || !_suiviV2Loc) { showToast('⚠️ Ouvrez d\'abord le journal d\'un locataire'); return; }
+  const s = suiviData[_suiviV2Key] || {};
+  const count = suiviCountContacts(s);
+
+  // Récupérer les infos locataire complètes
+  const ri = _suiviV2Loc.resIdx;
+  const li = _suiviV2Loc.locIdx;
+  let locInfo = { nom: _suiviV2Loc.nom, adresse: '', batLgt: '', bailleur: '' };
+  if (ri !== null && li !== null && !isNaN(ri) && !isNaN(li)) {
+    const res = RESIDENCES_DATA[ri];
+    const loc = res?.locataires[li];
+    const over = (typeof locOverrides !== 'undefined') ? (locOverrides[`r${ri}_l${li}`] || {}) : {};
+    locInfo.nom = over.nom || loc?.nom || _suiviV2Loc.nom;
+    locInfo.adresse = over.adresse || loc?.adresse || (res?.nom || '');
+    const bat = over.batiment || loc?.batiment || '';
+    const lgt = over.lgt || loc?.lgt || '';
+    locInfo.batLgt = (bat ? bat + ' / ' : '') + (lgt ? 'Lgt ' + lgt : '');
+    locInfo.bailleur = over.bailleur || loc?.bailleur || 'ERILIA';
+  }
+  _courrierLocCtx = { ...locInfo, nbContacts: count, key: _suiviV2Key, resIdx: ri, locIdx: li };
+
+  // Remplir la modale
+  document.getElementById('courrierLocName').textContent = locInfo.nom;
+  document.getElementById('courrierLocInfo').innerHTML = `${locInfo.adresse} — ${locInfo.batLgt} — Bailleur : ${locInfo.bailleur}`;
+  document.getElementById('courrierNbContacts').textContent = count;
+  // Reset choix modèle + email
+  document.getElementById('courrierModele').value = 'information';
+  document.getElementById('courrierEmailBailleur').value = '';
+  document.getElementById('courrierEmailEnvoye').checked = false;
+  updateCourrierApercu();
+  document.getElementById('courrierModalOverlay').classList.add('open');
+};
+
+window.closeCourrierModal = function() {
+  document.getElementById('courrierModalOverlay').classList.remove('open');
+  _courrierLocCtx = null;
+};
+
+window.updateCourrierApercu = function() {
+  if (!_courrierLocCtx) return;
+  const modele = document.getElementById('courrierModele').value;
+  const m = COURRIER_MODELES[modele];
+  if (!m) return;
+  document.getElementById('courrierApercuObjet').textContent = m.objet;
+  document.getElementById('courrierApercuTexte').textContent = m.texte.replace('{NB_CONTACTS}', _courrierLocCtx.nbContacts);
+};
+
+// ---- Génération Word ----
+window.genererCourrierWord = function() {
+  if (!_courrierLocCtx) return;
+  if (typeof docx === 'undefined') {
+    showToast('⏳ Chargement docx...');
+    chargerDocxJs(() => genererCourrierWord());
+    return;
+  }
+  const modele = document.getElementById('courrierModele').value;
+  const m = COURRIER_MODELES[modele];
+
+  const { Document, Packer, Paragraph, TextRun, AlignmentType, BorderStyle, Footer } = docx;
+
+  const COLOR_BLEU = "1F4E79";
+  const COLOR_GRIS = "595959";
+
+  const p = (text, opts = {}) => new Paragraph({
+    alignment: opts.align || AlignmentType.LEFT,
+    spacing: opts.spacing || { after: 120 },
+    children: [new TextRun({ text: text || ' ', bold: opts.bold || false, size: opts.size || 22, color: opts.color || '000000', italics: opts.italic || false })]
+  });
+
+  const aujourdhui = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const isLrar = modele === 'lrar';
+  const isMed = modele === 'mise_en_demeure';
+
+  // Texte personnalisé
+  const texteCourrier = m.texte.replace('{NB_CONTACTS}', _courrierLocCtx.nbContacts);
+  const paragraphes = texteCourrier.split('\n\n').map(para => p(para, { spacing: { after: 200 }, align: AlignmentType.JUSTIFIED }));
+
+  const children = [
+    // En-tête expéditeur
+    p("SANIT CLIMAT SAS", { bold: true, size: 26, color: COLOR_BLEU }),
+    p("280 avenue de Saint Antoine"),
+    p("13015 MARSEILLE"),
+    p("Tél standard : 04 91 02 17 47   ·   Email : contact@sanit-climat.fr", { size: 18, color: COLOR_GRIS }),
+    p("Prise de RDV entretien chaudière : 07 60 05 67 96", { size: 18, color: COLOR_BLEU, bold: true, spacing: { after: 400 } }),
+
+    // Destinataire (droite)
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 100 },
+      children: [new TextRun({ text: _courrierLocCtx.nom, bold: true, size: 22 })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 100 },
+      children: [new TextRun({ text: _courrierLocCtx.adresse, size: 22 })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 400 },
+      children: [new TextRun({ text: _courrierLocCtx.batLgt, size: 22 })]
+    }),
+
+    // Lieu, date
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 300 },
+      children: [new TextRun({ text: `Marseille, le ${aujourdhui}`, size: 22 })]
+    }),
+
+    // Mode envoi
+    isLrar ? p("Lettre recommandée avec accusé de réception", { bold: true, size: 20, color: "C0392B", spacing: { after: 200 } }) :
+    isMed ? p("Lettre recommandée avec accusé de réception — MISE EN DEMEURE", { bold: true, size: 20, color: "C0392B", spacing: { after: 200 } }) :
+    p("Lettre simple", { italic: true, size: 18, color: COLOR_GRIS, spacing: { after: 200 } }),
+
+    // Objet
+    new Paragraph({
+      spacing: { after: 300 },
+      children: [
+        new TextRun({ text: "Objet : ", bold: true, size: 22 }),
+        new TextRun({ text: m.objet, bold: true, size: 22, color: COLOR_BLEU })
+      ]
+    }),
+
+    // Réf
+    new Paragraph({
+      spacing: { after: 400 },
+      children: [
+        new TextRun({ text: "Référence dossier : ", bold: true, size: 20 }),
+        new TextRun({ text: `Logement ${_courrierLocCtx.batLgt}`, size: 20 })
+      ]
+    }),
+
+    // Civilité
+    p("Madame, Monsieur,", { spacing: { after: 300 } }),
+
+    // Corps
+    ...paragraphes,
+
+    // Formule politesse
+    p(" "),
+    p("Nous vous prions d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.", { spacing: { after: 600 }, align: AlignmentType.JUSTIFIED }),
+
+    // Signature
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 100 },
+      children: [new TextRun({ text: "Rémy GALEA", bold: true, size: 22 })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 100 },
+      children: [new TextRun({ text: "Président — SANIT CLIMAT SAS", italics: true, size: 20, color: COLOR_GRIS })]
+    }),
+    new Paragraph({
+      alignment: AlignmentType.RIGHT,
+      spacing: { after: 0 },
+      children: [new TextRun({ text: " ", size: 200 })]
+    }),
+    p("[ Cachet de l'entreprise et signature ]", { italic: true, size: 16, color: COLOR_GRIS, align: AlignmentType.RIGHT })
+  ];
+
+  // Ajouter mention LRAR
+  if (isLrar || isMed) {
+    children.push(p(" "));
+    children.push(p("PJ : Justificatifs des tentatives de prise de rendez-vous (journal des contacts).", { italic: true, size: 18, color: COLOR_GRIS }));
+  }
+
+  const doc = new Document({
+    creator: "SANIT CLIMAT SAS",
+    title: `Courrier ${m.titre} — ${_courrierLocCtx.nom}`,
+    styles: { default: { document: { run: { font: "Calibri", size: 22 } } } },
+    sections: [{
+      properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 1000, right: 1000, bottom: 1000, left: 1000 } } },
+      footers: {
+        default: new Footer({
+          children: [new Paragraph({
+            alignment: AlignmentType.CENTER,
+            border: { top: { style: BorderStyle.SINGLE, size: 6, color: COLOR_BLEU, space: 4 } },
+            spacing: { before: 80 },
+            children: [new TextRun({ text: "SANIT CLIMAT SAS · 280 av. de Saint Antoine · 13015 MARSEILLE · Qualigaz n° 833258", size: 14, color: COLOR_GRIS })]
+          })]
+        })
+      },
+      children
+    }]
+  });
+
+  Packer.toBlob(doc).then(blob => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Courrier_${modele}_${_courrierLocCtx.nom.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().slice(0, 10)}.docx`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('📄 Courrier Word généré');
+  });
+};
+
+// ---- Génération PDF (impression) ----
+window.genererCourrierPDF = function() {
+  if (!_courrierLocCtx) return;
+  const modele = document.getElementById('courrierModele').value;
+  const m = COURRIER_MODELES[modele];
+  const texteCourrier = m.texte.replace('{NB_CONTACTS}', _courrierLocCtx.nbContacts);
+  const paragraphes = texteCourrier.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br>')}</p>`).join('');
+  const aujourdhui = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+  const isLrar = modele === 'lrar';
+  const isMed = modele === 'mise_en_demeure';
+
+  const html = `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">
+<title>${m.titre} — ${_courrierLocCtx.nom}</title>
+<style>
+@page { size: A4; margin: 25mm; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Calibri', Arial, sans-serif; color: #000; font-size: 11pt; line-height: 1.5; }
+.expediteur { margin-bottom: 30mm; }
+.expediteur .brand { font-size: 16pt; font-weight: 700; color: #1F4E79; }
+.expediteur .small { font-size: 9pt; color: #595959; }
+.destinataire { text-align: right; margin-bottom: 15mm; }
+.date { text-align: right; margin-bottom: 10mm; }
+.mode { font-weight: 700; color: #C0392B; margin-bottom: 8mm; font-size: 11pt; }
+.objet { margin-bottom: 5mm; font-weight: 700; }
+.objet span { color: #1F4E79; }
+.reference { margin-bottom: 10mm; font-weight: 600; font-size: 10pt; }
+.civilite { margin-bottom: 6mm; }
+p { text-align: justify; margin-bottom: 5mm; }
+.salutation { margin-top: 8mm; margin-bottom: 20mm; }
+.signature { text-align: right; }
+.signature .nom { font-weight: 700; }
+.signature .role { font-style: italic; color: #595959; font-size: 10pt; margin-bottom: 15mm; }
+.pj { font-style: italic; color: #595959; font-size: 9pt; margin-top: 15mm; }
+.footer { position: fixed; bottom: 5mm; left: 25mm; right: 25mm; border-top: 1px solid #1F4E79; padding-top: 3mm; font-size: 8pt; color: #595959; text-align: center; }
+.no-print { position: fixed; top: 10px; right: 10px; background: #1F4E79; color: #fff; padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; }
+@media print { .no-print { display: none; } }
+</style></head><body>
+<button class="no-print" onclick="window.print()">🖨️ Imprimer / PDF</button>
+
+<div class="expediteur">
+  <div class="brand">SANIT CLIMAT SAS</div>
+  <div>280 avenue de Saint Antoine</div>
+  <div>13015 MARSEILLE</div>
+  <div class="small">Tél standard : 04 91 02 17 47 · Email : contact@sanit-climat.fr</div>
+  <div class="small" style="color:#1F4E79;font-weight:700">Prise de RDV entretien chaudière : 07 60 05 67 96</div>
+</div>
+
+<div class="destinataire">
+  <strong>${_courrierLocCtx.nom}</strong><br>
+  ${_courrierLocCtx.adresse}<br>
+  ${_courrierLocCtx.batLgt}
+</div>
+
+<div class="date">Marseille, le ${aujourdhui}</div>
+
+<div class="mode">${isLrar || isMed ? 'Lettre recommandée avec accusé de réception' + (isMed ? ' — MISE EN DEMEURE' : '') : '<em style="color:#595959">Lettre simple</em>'}</div>
+
+<div class="objet">Objet : <span>${m.objet}</span></div>
+<div class="reference">Référence dossier : Logement ${_courrierLocCtx.batLgt}</div>
+
+<div class="civilite">Madame, Monsieur,</div>
+
+${paragraphes}
+
+<div class="salutation">Nous vous prions d'agréer, Madame, Monsieur, l'expression de nos salutations distinguées.</div>
+
+<div class="signature">
+  <div class="nom">Rémy GALEA</div>
+  <div class="role">Président — SANIT CLIMAT SAS</div>
+  [ Cachet de l'entreprise et signature ]
+</div>
+
+${(isLrar || isMed) ? '<div class="pj">PJ : Justificatifs des tentatives de prise de rendez-vous (journal des contacts).</div>' : ''}
+
+<div class="footer">SANIT CLIMAT SAS · 280 av. de Saint Antoine · 13015 MARSEILLE · Qualigaz n° 833258</div>
+
+<script>setTimeout(() => window.print(), 500);<\/script>
+</body></html>`;
+
+  const w = window.open('', '_blank');
+  if (!w) { showToast('⚠️ Autorise les pop-ups'); return; }
+  w.document.write(html);
+  w.document.close();
+};
+
+// ---- Enregistrer l'émission du courrier + email bailleur ----
+window.validerEnvoiCourrier = function() {
+  if (!_courrierLocCtx || isReadOnly) return;
+  const modele = document.getElementById('courrierModele').value;
+  const m = COURRIER_MODELES[modele];
+  const emailBailleur = document.getElementById('courrierEmailBailleur').value.trim();
+  const envoyerEmail = document.getElementById('courrierEmailEnvoye').checked;
+
+  const entry = {
+    type: 'courrier',
+    date: new Date().toISOString(),
+    note: `Courrier ${m.titre} émis (${_courrierLocCtx.nbContacts} contacts préalables)`,
+    modele: modele,
+    auteur: currentUser?.email || '',
+    createdAt: new Date().toISOString(),
+    email: envoyerEmail ? emailBailleur : null
+  };
+
+  const s = suiviData[_suiviV2Key] || {};
+  const historique = Array.isArray(s.historique) ? [...s.historique] : [];
+  historique.push(entry);
+
+  db.ref('lot2_suivi/' + _suiviV2Key).update({
+    historique,
+    resIdx: _courrierLocCtx.resIdx,
+    locIdx: _courrierLocCtx.locIdx,
+    updatedAt: new Date().toISOString(),
+    updatedBy: currentUser?.email || ''
+  }).then(() => {
+    showToast('✅ Courrier enregistré dans le journal');
+    closeCourrierModal();
+    setTimeout(() => renderSuiviV2Journal(), 200);
+
+    // Envoi email bailleur (ouvre le client mail)
+    if (envoyerEmail && emailBailleur) {
+      const subject = encodeURIComponent(`[ALERTE] Locataire injoignable — ${_courrierLocCtx.nom} — Logement ${_courrierLocCtx.batLgt}`);
+      const body = encodeURIComponent(
+`Bonjour,
+
+Nous vous informons que, malgré ${_courrierLocCtx.nbContacts} tentatives de prise de rendez-vous (appels téléphoniques et SMS), nous n'avons pas pu joindre le locataire suivant pour réaliser l'entretien annuel obligatoire de sa chaudière à gaz :
+
+NOM : ${_courrierLocCtx.nom}
+ADRESSE : ${_courrierLocCtx.adresse}
+LOGEMENT : ${_courrierLocCtx.batLgt}
+BAILLEUR : ${_courrierLocCtx.bailleur}
+
+Un courrier de relance (${m.titre}) a été émis ce jour, le ${new Date().toLocaleDateString('fr-FR')}.
+
+Le courrier mentionne notre ligne dédiée à la prise de rendez-vous : 07 60 05 67 96.
+
+Nous vous laissons le soin d'engager les démarches qui vous sembleront utiles auprès du locataire.
+
+Cordialement,
+
+Rémy GALEA
+Président — SANIT CLIMAT SAS
+04 91 02 17 47`);
+      const mailto = `mailto:${emailBailleur}?subject=${subject}&body=${body}`;
+      window.location.href = mailto;
+    }
+  });
+};
+
+// ---- Ouvrir le journal depuis la modale d'édition locataire ----
+window.openSuiviFromLocModal = function() {
+  if (locModalResIdx === null || locModalLocIdx === null) {
+    showToast('⚠️ Sauvegardez d\'abord le locataire');
+    return;
+  }
+  const ri = locModalResIdx;
+  const li = locModalLocIdx;
+  const res = RESIDENCES_DATA[ri];
+  const loc = res?.locataires[li];
+  const over = (typeof locOverrides !== 'undefined') ? (locOverrides[`r${ri}_l${li}`] || {}) : {};
+  const nom = over.nom || loc?.nom || 'Locataire';
+  const key = 'r' + ri + '_l' + li;
+  openSuiviModalV2(key, nom, ri, li);
+};
+
+
 
 </script>
 
@@ -29048,5 +29746,129 @@ window.exportRelancesCSV = function() {
   </div>
 </div>
 
+
+
+<!-- ============================================================
+     ============== MODALE JOURNAL DE CONTACT V2 =================
+     ============================================================ -->
+<div class="modal-overlay" id="suiviV2ModalOverlay">
+  <div class="modal" style="max-width:900px;width:96%;max-height:92vh;overflow-y:auto">
+    <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#1a5276,#2980b9);color:#fff;margin:-20px -20px 16px -20px;padding:14px 20px;border-radius:12px 12px 0 0">
+      <h3 style="color:#fff;font-size:16px">📞 Journal des contacts — <span id="suiviV2LocName" style="font-weight:400"></span></h3>
+      <button onclick="closeSuiviV2Modal()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:0 4px">
+
+      <!-- Banner alerte / info -->
+      <div id="suiviV2BannerContainer"></div>
+
+      <!-- Bloc ajout d'un contact -->
+      <div style="background:#f4f6f9;border-left:4px solid #1a5276;border-radius:8px;padding:12px 14px;margin-bottom:12px">
+        <div style="font-weight:700;color:#1a5276;margin-bottom:10px;font-size:13px">➕ AJOUTER UN CONTACT</div>
+        <div style="display:grid;grid-template-columns:140px 200px 1fr auto;gap:8px;align-items:end">
+          <div>
+            <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:3px">Type</label>
+            <select id="suiviV2NewType" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
+              <option value="appel">📞 Appel</option>
+              <option value="sms">💬 SMS</option>
+              <option value="relance">📋 Relance</option>
+              <option value="note">🗒️ Note simple</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:3px">Date/heure</label>
+            <input type="datetime-local" id="suiviV2NewDate" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
+          </div>
+          <div>
+            <label style="font-size:11px;color:#666;font-weight:600;display:block;margin-bottom:3px">Note (facultatif)</label>
+            <input type="text" id="suiviV2NewNote" placeholder="ex: Pas de réponse, message vocal laissé" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
+          </div>
+          <button class="btn-add" onclick="addSuiviEntry()" style="padding:7px 14px">➕ Ajouter</button>
+        </div>
+        <div style="font-size:11px;color:#666;margin-top:6px;font-style:italic">Les contacts de type « Note » ne comptent pas dans le seuil d'alerte courrier.</div>
+      </div>
+
+      <!-- Journal -->
+      <div style="font-weight:700;color:#1a5276;margin-bottom:8px;font-size:13px">📅 HISTORIQUE</div>
+      <div id="suiviV2JournalContainer"></div>
+
+    </div>
+
+    <div class="modal-footer" style="display:flex;justify-content:flex-end;padding:14px 4px 4px 4px;border-top:1px solid var(--border)">
+      <button class="btn-undo" onclick="closeSuiviV2Modal()" style="padding:9px 18px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     ============== MODALE COURRIER DE RELANCE ==================
+     ============================================================ -->
+<div class="modal-overlay" id="courrierModalOverlay">
+  <div class="modal" style="max-width:900px;width:96%;max-height:92vh;overflow-y:auto">
+    <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#c0392b,#e74c3c);color:#fff;margin:-20px -20px 16px -20px;padding:14px 20px;border-radius:12px 12px 0 0">
+      <h3 style="color:#fff;font-size:16px">✉️ Générer un courrier de relance</h3>
+      <button onclick="closeCourrierModal()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px">×</button>
+    </div>
+
+    <div class="modal-body" style="padding:0 4px">
+
+      <!-- Récap locataire -->
+      <div style="background:#fff7ed;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+          <div>
+            <div style="font-weight:700;color:#7c2d12;font-size:14px" id="courrierLocName"></div>
+            <div style="font-size:12px;color:#7c2d12;margin-top:2px" id="courrierLocInfo"></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:28px;font-weight:800;color:#c0392b;line-height:1" id="courrierNbContacts">0</div>
+            <div style="font-size:10px;color:#7c2d12;font-weight:600">contacts préalables</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Choix modèle -->
+      <div style="background:#f4f6f9;border-left:4px solid #1a5276;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-weight:700;color:#1a5276;margin-bottom:10px;font-size:13px">📝 MODÈLE DE COURRIER</div>
+        <select id="courrierModele" onchange="updateCourrierApercu()" style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff;font-weight:600">
+          <option value="information">💌 Courrier d'information courtoise — ton neutre (lettre simple)</option>
+          <option value="relance">📩 Courrier de relance — ton modéré (lettre simple)</option>
+          <option value="lrar">⚠️ Lettre recommandée AR — ton ferme (LRAR)</option>
+          <option value="mise_en_demeure">⛔ Mise en demeure formelle — Code de la construction (LRAR)</option>
+        </select>
+      </div>
+
+      <!-- Aperçu -->
+      <div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:16px 18px;margin-bottom:14px;max-height:300px;overflow-y:auto">
+        <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;font-weight:600">APERÇU DU CONTENU</div>
+        <div style="font-weight:700;color:#1a5276;margin-bottom:8px" id="courrierApercuObjet"></div>
+        <div style="font-size:12px;color:#1f2937;white-space:pre-wrap;line-height:1.5" id="courrierApercuTexte"></div>
+      </div>
+
+      <!-- Email bailleur -->
+      <div style="background:#eff6ff;border:1px solid #2980b9;border-radius:8px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-weight:700;color:#1a5276;margin-bottom:8px;font-size:13px">📧 ALERTE BAILLEUR (facultatif)</div>
+        <label style="display:flex;gap:8px;align-items:center;font-size:13px;cursor:pointer;margin-bottom:8px">
+          <input type="checkbox" id="courrierEmailEnvoye">
+          Envoyer aussi un email d'information au bailleur
+        </label>
+        <input type="email" id="courrierEmailBailleur" placeholder="contact-erilia@..." style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;background:#fff">
+        <div style="font-size:11px;color:#666;margin-top:4px;font-style:italic">Si coché, votre client mail s'ouvrira avec le message pré-rempli après validation.</div>
+      </div>
+
+    </div>
+
+    <div class="modal-footer" style="display:flex;justify-content:space-between;align-items:center;padding:14px 4px 4px 4px;border-top:1px solid var(--border);gap:8px;flex-wrap:wrap">
+      <div style="display:flex;gap:8px">
+        <button class="btn-add" onclick="genererCourrierWord()" style="background:#1a5276">📄 Word</button>
+        <button class="btn-add" onclick="genererCourrierPDF()" style="background:#c0392b">📄 PDF</button>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn-undo" onclick="closeCourrierModal()" style="padding:9px 18px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Annuler</button>
+        <button class="btn-add" onclick="validerEnvoiCourrier()" style="background:#27ae60">✅ Valider envoi (trace dans journal)</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 </body></html>
