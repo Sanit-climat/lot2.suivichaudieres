@@ -29045,23 +29045,33 @@ function renderSuiviV2Journal() {
   const count = suiviCountContacts(s);
   const courrier = suiviCourrierEmis(s);
 
-  // Banner d'alerte en haut
+  // Banner d'alerte en haut — le bouton de génération de courrier est TOUJOURS accessible
   let banner = '';
   if (count >= SUIVI_SEUIL_COURRIER && !courrier) {
+    // Cas 1 : seuil atteint, pas encore de courrier → alerte rouge
     banner = `<div style="background:#fee2e2;border:2px solid #c0392b;border-radius:8px;padding:12px 14px;margin-bottom:12px">
       <div style="font-weight:700;color:#c0392b;font-size:14px;margin-bottom:6px">⚠️ Seuil de ${SUIVI_SEUIL_COURRIER} contacts atteint (${count})</div>
       <div style="font-size:12px;color:#7f1d1d;margin-bottom:8px">L'envoi d'un courrier au locataire est désormais requis pour formaliser la démarche.</div>
       <button class="btn-add" onclick="openCourrierModal()" style="background:#c0392b;width:100%">✉️ Générer le courrier de relance</button>
     </div>`;
   } else if (courrier) {
+    // Cas 2 : courrier déjà émis → bandeau bleu informatif + bouton nouveau
     banner = `<div style="background:#dbeafe;border:2px solid #1a5276;border-radius:8px;padding:12px 14px;margin-bottom:12px">
       <div style="font-weight:700;color:#1a5276;font-size:14px;margin-bottom:4px">✉️ Courrier ${courrier.modele || 'de relance'} envoyé</div>
       <div style="font-size:12px;color:#1e3a5f">Date d'envoi : <b>${new Date(courrier.date).toLocaleDateString('fr-FR')}</b>${courrier.email ? ' · Email bailleur envoyé' : ''}</div>
       <button class="btn-add" onclick="openCourrierModal()" style="background:#1a5276;width:100%;margin-top:8px">✉️ Générer un nouveau courrier</button>
     </div>`;
   } else if (count > 0) {
-    banner = `<div style="background:#fff3e0;border:1px solid #e67e22;border-radius:8px;padding:10px 14px;margin-bottom:12px;color:#7c2d12;font-size:12px">
-      ${count} contact${count > 1 ? 's' : ''} enregistré${count > 1 ? 's' : ''} · Alerte courrier déclenchée à partir de <b>${SUIVI_SEUIL_COURRIER}</b>.
+    // Cas 3 : entre 1 et 2 contacts → bandeau orange + bouton accessible
+    banner = `<div style="background:#fff3e0;border:1px solid #e67e22;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+      <div style="color:#7c2d12;font-size:12px;margin-bottom:8px">${count} contact${count > 1 ? 's' : ''} enregistré${count > 1 ? 's' : ''} · Alerte courrier déclenchée à partir de <b>${SUIVI_SEUIL_COURRIER}</b>.</div>
+      <button class="btn-add" onclick="openCourrierModal()" style="background:#e67e22;width:100%">✉️ Générer un courrier (information, relance ou LRAR)</button>
+    </div>`;
+  } else {
+    // Cas 4 : aucun contact → bandeau gris discret + bouton tout de même accessible
+    banner = `<div style="background:#f1f5f9;border:1px solid #cbd5e1;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+      <div style="color:#475569;font-size:12px;margin-bottom:8px">Aucun contact enregistré pour ce locataire. Vous pouvez tout de même générer un courrier d'information directement.</div>
+      <button class="btn-add" onclick="openCourrierModal()" style="background:#64748b;width:100%">✉️ Générer un courrier d'information</button>
     </div>`;
   }
 
@@ -29620,20 +29630,29 @@ window.validerEnvoiCourrier = function() {
     closeCourrierModal();
     setTimeout(() => renderSuiviV2Journal(), 200);
 
-    // Envoi email bailleur (ouvre le client mail)
+    // Si email bailleur demandé : afficher modale de prévisualisation avec 3 méthodes d'envoi
     if (envoyerEmail && emailBailleur) {
-      const subject = encodeURIComponent(`[ALERTE] Locataire injoignable — ${_courrierLocCtx.nom} — Logement ${_courrierLocCtx.batLgt}`);
-      const body = encodeURIComponent(
-`Bonjour,
+      ouvrirModaleEmailBailleur(emailBailleur, m.titre);
+    }
+  });
+};
 
-Nous vous informons que, malgré ${_courrierLocCtx.nbContacts} tentatives de prise de rendez-vous (appels téléphoniques et SMS), nous n'avons pas pu joindre le locataire suivant pour réaliser l'entretien annuel obligatoire de sa chaudière à gaz :
+// ---- Modale d'aperçu et envoi email bailleur (3 méthodes) ----
+function ouvrirModaleEmailBailleur(emailBailleur, modeleTitre) {
+  if (!_courrierLocCtx) return;
+  const ctx = _courrierLocCtx;
+  const sujet = `[ALERTE] Locataire injoignable — ${ctx.nom} — Logement ${ctx.batLgt}`;
+  const adresseComplete = [ctx.resNom, ctx.addrRue, ((ctx.addrCP || '') + ' ' + (ctx.addrVille || '')).trim()].filter(Boolean).join(', ');
+  const corps = `Bonjour,
 
-NOM : ${_courrierLocCtx.nom}
-ADRESSE : ${_courrierLocCtx.adresse}
-LOGEMENT : ${_courrierLocCtx.batLgt}
-BAILLEUR : ${_courrierLocCtx.bailleur}
+Nous vous informons que, malgré ${ctx.nbContacts} tentative(s) de prise de rendez-vous (appels téléphoniques et SMS), nous n'avons pas pu joindre le locataire suivant pour réaliser l'entretien annuel obligatoire de sa chaudière à gaz :
 
-Un courrier de relance (${m.titre}) a été émis ce jour, le ${new Date().toLocaleDateString('fr-FR')}.
+NOM : ${ctx.nom}
+ADRESSE : ${adresseComplete}
+LOGEMENT : ${ctx.batLgt}
+BAILLEUR : ${ctx.bailleur}
+
+Un courrier de relance (${modeleTitre}) a été émis ce jour, le ${new Date().toLocaleDateString('fr-FR')}.
 
 Le courrier mentionne notre ligne dédiée à la prise de rendez-vous : 07 60 05 67 96.
 
@@ -29643,12 +29662,95 @@ Cordialement,
 
 Rémy GALEA
 Président — SANIT CLIMAT SAS
-04 91 02 17 47`);
-      const mailto = `mailto:${emailBailleur}?subject=${subject}&body=${body}`;
-      window.location.href = mailto;
-    }
-  });
+04 91 02 17 47`;
+
+  // Construire la modale
+  const subjectEnc = encodeURIComponent(sujet);
+  const bodyEnc = encodeURIComponent(corps);
+  const emailEnc = encodeURIComponent(emailBailleur);
+  const mailtoUrl = `mailto:${emailBailleur}?subject=${subjectEnc}&body=${bodyEnc}`;
+  const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${emailEnc}&su=${subjectEnc}&body=${bodyEnc}`;
+  const outlookUrl = `https://outlook.office.com/mail/deeplink/compose?to=${emailEnc}&subject=${subjectEnc}&body=${bodyEnc}`;
+
+  const html = `<div class="modal-overlay open" id="emailPreviewOverlay" onclick="if(event.target===this) document.getElementById('emailPreviewOverlay').remove()" style="z-index:9999">
+    <div class="modal" style="max-width:780px;width:96%;max-height:92vh;overflow-y:auto">
+      <div class="modal-header" style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#1a5276,#2980b9);color:#fff;margin:-20px -20px 16px -20px;padding:14px 20px;border-radius:12px 12px 0 0">
+        <h3 style="color:#fff;font-size:16px">📧 Envoi email bailleur</h3>
+        <button onclick="document.getElementById('emailPreviewOverlay').remove()" style="background:rgba(255,255,255,.2);border:1px solid rgba(255,255,255,.4);color:#fff;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:18px">×</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:#eff6ff;border:1px solid #2980b9;border-radius:8px;padding:10px 14px;margin-bottom:12px">
+          <div style="font-size:11px;color:#1a5276;font-weight:600;margin-bottom:2px">DESTINATAIRE</div>
+          <div style="font-size:14px;font-weight:600">${emailBailleur}</div>
+        </div>
+        <div style="background:#fff;border:1px solid #cbd5e1;border-radius:8px;padding:14px;margin-bottom:14px">
+          <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:6px">OBJET</div>
+          <div style="font-weight:700;color:#1a5276;font-size:13px;margin-bottom:14px">${sujet}</div>
+          <div style="font-size:11px;color:#94a3b8;font-weight:600;margin-bottom:6px">CORPS DU MESSAGE</div>
+          <textarea id="emailPreviewBody" style="width:100%;min-height:240px;padding:10px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:12px;line-height:1.5;resize:vertical">${corps}</textarea>
+        </div>
+        <div style="font-size:11px;color:#666;font-style:italic;margin-bottom:10px">Vous pouvez modifier le corps du message ci-dessus avant l'envoi.</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+          <button onclick="envoyerViaGmail('${emailBailleur}','${sujet.replace(/'/g,"\\'")}')" style="padding:12px;background:#ea4335;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">📨 Ouvrir dans Gmail</button>
+          <button onclick="envoyerViaOutlook('${emailBailleur}','${sujet.replace(/'/g,"\\'")}')" style="padding:12px;background:#0078d4;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">📨 Ouvrir dans Outlook</button>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <button onclick="window.location.href='${mailtoUrl}'" style="padding:12px;background:#1a5276;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">📧 Client mail par défaut</button>
+          <button onclick="copierEmailContenu('${emailBailleur}','${sujet.replace(/'/g,"\\'")}')" style="padding:12px;background:#27ae60;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;font-size:13px">📋 Copier dans presse-papiers</button>
+        </div>
+      </div>
+      <div class="modal-footer" style="display:flex;justify-content:flex-end;padding:14px 4px 4px 4px;border-top:1px solid var(--border);margin-top:12px">
+        <button class="btn-undo" onclick="document.getElementById('emailPreviewOverlay').remove()" style="padding:9px 18px;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600">Fermer</button>
+      </div>
+    </div>
+  </div>`;
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  document.body.appendChild(div.firstElementChild);
+}
+
+window.envoyerViaGmail = function(destinataire, sujet) {
+  const corps = document.getElementById('emailPreviewBody').value;
+  const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(destinataire)}&su=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+  window.open(url, '_blank');
+  showToast('📨 Gmail ouvert dans un nouvel onglet');
 };
+
+window.envoyerViaOutlook = function(destinataire, sujet) {
+  const corps = document.getElementById('emailPreviewBody').value;
+  const url = `https://outlook.office.com/mail/deeplink/compose?to=${encodeURIComponent(destinataire)}&subject=${encodeURIComponent(sujet)}&body=${encodeURIComponent(corps)}`;
+  window.open(url, '_blank');
+  showToast('📨 Outlook ouvert dans un nouvel onglet');
+};
+
+window.copierEmailContenu = function(destinataire, sujet) {
+  const corps = document.getElementById('emailPreviewBody').value;
+  const texte = `À : ${destinataire}\nObjet : ${sujet}\n\n${corps}`;
+  // Tenter API moderne
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texte).then(() => {
+      showToast('📋 Contenu copié — collez-le dans votre logiciel mail');
+    }).catch(() => fallbackCopy(texte));
+  } else {
+    fallbackCopy(texte);
+  }
+};
+
+function fallbackCopy(texte) {
+  const ta = document.createElement('textarea');
+  ta.value = texte;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('📋 Contenu copié');
+  } catch (e) {
+    showToast('⚠️ Impossible de copier automatiquement');
+  }
+  document.body.removeChild(ta);
+}
 
 // ---- Ouvrir le journal depuis la modale d'édition locataire ----
 window.openSuiviFromLocModal = function() {
