@@ -24926,8 +24926,48 @@ Ne fonction pas&#39;,&#39;2026-05-22&#39;)" style="margin-left:4px">💬</button
       <select id="locResIdx" onchange="updateLocRef()"><option value="0">Le Clos des Écoles - Lambesc</option><option value="1">Le Loriot - La Roque d'Anthéron</option><option value="2">Les Bastides du Griffon - Vitrolles</option><option value="3">Les Pergolas - Marignane</option><option value="4">Les Vignes - Lançon de Provence</option><option value="5">Parc Camoin - Marignane</option><option value="6">Le Clos de Lacanau - Marignane</option><option value="7">Le Clos du Pressoir - Velaux</option><option value="8">Domaine de Beauprés 2 - Marignane</option><option value="9">Les Grandes Terres - Le Puy Ste Réparade</option><option value="10">Les Logis de Berre - Berre l'Étang</option><option value="11">Les Moulins de Guynemer - Marignane</option><option value="12">Les Raumettes - Marignane</option><option value="13">Cœur de Pinède - Pertuis</option><option value="14">Domaine de Beauprés 1 - Marignane</option><option value="15">Les Frégates - Rognac</option><option value="16">Latécoère - Marignane</option><option value="17">L'Ancolie - Eyguières</option></select>
     </div>
     <div class="form-field">
-      <label>N° APPARTEMENT</label>
-      <input type="text" id="locAppart" placeholder="Ex: Bât A3 – Ét 0 – N°249 (T3)" readonly="" style="background:#f8fafc;color:#64748b">
+      <label>N° APPARTEMENT <span style="font-size:10px;color:#94a3b8;font-weight:400">(libellé affiché)</span></label>
+      <input type="text" id="locAppart" placeholder="Ex: Bât A3 – Ét 0 – N°249 (T3)" oninput="window._locApptManual=true">
+    </div>
+
+    <!-- Section Module / Localisation : modifiable -->
+    <div class="form-field full" style="grid-column:1/-1;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 14px;margin-top:4px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <label style="margin:0;font-weight:700;color:#1e293b">🏠 Module / Localisation</label>
+        <button type="button" onclick="recomputeLocAppart()" style="background:#3b82f6;color:#fff;border:none;border-radius:6px;padding:4px 10px;font-size:11px;cursor:pointer;font-weight:600">↻ Recalculer le N° APPT</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;color:#64748b">RÉFÉRENCE ERILIA</label>
+          <input type="text" id="locRef" placeholder="Ex: E03550025L" style="font-family:monospace;font-size:12px">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;color:#64748b">BÂTIMENT</label>
+          <input type="text" id="locBat" placeholder="Ex: A3" oninput="autoRefreshAppart()">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;color:#64748b">N° LOGEMENT</label>
+          <input type="text" id="locLgt" placeholder="Ex: 249" oninput="autoRefreshAppart()">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;color:#64748b">ESCALIER</label>
+          <input type="text" id="locEsc" placeholder="Ex: B" oninput="autoRefreshAppart()">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;color:#64748b">ÉTAGE</label>
+          <input type="text" id="locEtage" placeholder="Ex: 2" oninput="autoRefreshAppart()">
+        </div>
+        <div class="form-field" style="margin:0">
+          <label style="font-size:10px;color:#64748b">TYPE</label>
+          <select id="locType" onchange="autoRefreshAppart()">
+            <option value="">—</option><option>T1</option><option>T2</option><option>T3</option><option>T4</option><option>T5</option><option>T6</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-field" style="margin:10px 0 0">
+        <label style="font-size:10px;color:#64748b">ADRESSE</label>
+        <input type="text" id="locAdresse" placeholder="Ex: AVENUE JULES FERRY 13410 LAMBESC">
+      </div>
     </div>
 
     <!-- Ligne 3: Chaudière / Téléphone -->
@@ -24971,14 +25011,7 @@ Ne fonction pas&#39;,&#39;2026-05-22&#39;)" style="margin-left:4px">💬</button
       <input type="date" id="locDateProchainEntretien">
     </div>
 
-    <!-- Champs cachés pour localisation précise -->
-    <div class="form-field" style="display:none"><input type="text" id="locRef"></div>
-    <div class="form-field" style="display:none"><input type="text" id="locBat"></div>
-    <div class="form-field" style="display:none"><input type="text" id="locEsc"></div>
-    <div class="form-field" style="display:none"><input type="text" id="locEtage"></div>
-    <div class="form-field" style="display:none"><input type="text" id="locLgt"></div>
-    <div class="form-field" style="display:none"><select id="locType"><option value="">—</option><option>T1</option><option>T2</option><option>T3</option><option>T4</option><option>T5</option><option>T6</option></select></div>
-    <div class="form-field" style="display:none"><input type="text" id="locAdresse"></div>
+    <!-- (Champs Réf/Bat/Esc/Étage/Lgt/Type/Adresse maintenant dans la section Module ci-dessus) -->
 
     <!-- Notes pleine largeur -->
     <div class="form-field full">
@@ -27683,15 +27716,21 @@ function fillLocForm(loc) {
   document.getElementById('locLgt').value = loc.lgt || '';
   document.getElementById('locType').value = loc.type || '';
 
-  // Champ appartement affiché
-  const locInfo = [
-    loc.bat ? `Bât ${loc.bat}` : '',
-    loc.esc ? `Esc ${loc.esc}` : '',
-    (loc.etage !== '' && loc.etage !== undefined) ? `Ét ${loc.etage}` : '',
-    loc.lgt ? `N°${loc.lgt}` : ''
-  ].filter(Boolean).join(' – ');
-  const appt = loc.type ? `${locInfo}${loc.type ? ` (${loc.type})` : ''}` : locInfo;
-  document.getElementById('locAppart').value = appt || '';
+  // Champ appartement : si une valeur custom existe (loc.appart), l'utiliser ; sinon recomposer
+  window._locApptManual = false;
+  if (loc.appart && String(loc.appart).trim()) {
+    document.getElementById('locAppart').value = loc.appart;
+    window._locApptManual = true; // valeur manuelle préservée
+  } else {
+    const locInfo = [
+      loc.bat ? `Bât ${loc.bat}` : '',
+      loc.esc ? `Esc ${loc.esc}` : '',
+      (loc.etage !== '' && loc.etage !== undefined && loc.etage !== null) ? `Ét ${loc.etage}` : '',
+      loc.lgt ? `N°${loc.lgt}` : ''
+    ].filter(Boolean).join(' – ');
+    const appt = loc.type ? `${locInfo}${locInfo ? ' ' : ''}(${loc.type})` : locInfo;
+    document.getElementById('locAppart').value = appt || '';
+  }
 
   // Chaudière — liste dynamique depuis Firebase
   populateLocChaudiereSelect(loc.chaudiereKey || '');
@@ -27704,6 +27743,31 @@ function fillLocForm(loc) {
   document.getElementById('locDateProchainEntretien').value = loc.dateProchainEntretien || '';
   document.getElementById('locNotes').value = loc.notes || '';
 }
+
+// Recompose le N° APPARTEMENT à partir des champs Bât/Esc/Étage/Lgt/Type.
+// Appelé automatiquement (autoRefreshAppart) seulement si l'utilisateur n'a pas saisi manuellement,
+// ou explicitement (recomputeLocAppart) via le bouton ↻.
+window.recomputeLocAppart = function() {
+  const bat = document.getElementById('locBat').value.trim();
+  const esc = document.getElementById('locEsc').value.trim();
+  const etage = document.getElementById('locEtage').value.trim();
+  const lgt = document.getElementById('locLgt').value.trim();
+  const type = document.getElementById('locType').value;
+  const parts = [
+    bat ? `Bât ${bat}` : '',
+    esc ? `Esc ${esc}` : '',
+    etage !== '' ? `Ét ${etage}` : '',
+    lgt ? `N°${lgt}` : ''
+  ].filter(Boolean);
+  const base = parts.join(' – ');
+  const appt = type ? `${base}${base ? ' ' : ''}(${type})` : base;
+  document.getElementById('locAppart').value = appt;
+  window._locApptManual = false;
+};
+
+window.autoRefreshAppart = function() {
+  if (!window._locApptManual) recomputeLocAppart();
+};
 
 function getLocFormData() {
   // Combine prénom + nom en un seul champ nom
@@ -27718,6 +27782,7 @@ function getLocFormData() {
     etage: document.getElementById('locEtage').value.trim(),
     lgt: document.getElementById('locLgt').value.trim(),
     type: document.getElementById('locType').value,
+    appart: document.getElementById('locAppart').value.trim(),
     chaudiereKey: document.getElementById('locChaudiere').value,
     chaudiere: document.getElementById('locChaudiere').selectedOptions[0]?.dataset?.nom || '',
     tel: document.getElementById('locTel').value.trim(),
@@ -28554,6 +28619,14 @@ function buildIntervLocOptions(ri) {
   ri = parseInt(ri);
   const res = RESIDENCES_DATA[ri];
   if (!res) return opts;
+  // DIAG: lister les new_* candidats pour cette résidence
+  if (window._diagIntervDropdown) {
+    const candidats = Object.keys(locOverrides).filter(k => k.startsWith('new_')).map(k => ({
+      key: k, nom: locOverrides[k]?.nom, _resIdx: locOverrides[k]?._resIdx,
+      _sorti: !!locOverrides[k]?._sorti, _deleted: !!locOverrides[k]?._deleted
+    }));
+    console.log('[buildIntervLocOptions] ri=', ri, 'new_* candidats =', candidats);
+  }
   // 1) Locataires seed (non supprimés, non sortis)
   res.locataires.forEach((loc, li) => {
     const delKey = `del_r${ri}_l${li}`;
@@ -28569,7 +28642,9 @@ function buildIntervLocOptions(ri) {
     if (!k.startsWith('new_')) return;
     const loc = locOverrides[k];
     if (!loc || loc._deleted || loc._sorti) return;
-    if (loc._resIdx !== ri) return;
+    // Tolérer _resIdx string ou number, ou même absent (on tente parseInt)
+    const locRi = (typeof loc._resIdx === 'number') ? loc._resIdx : parseInt(loc._resIdx);
+    if (isNaN(locRi) || locRi !== ri) return;
     const nom = loc.nom || '(sans nom)';
     const lgt = loc.lgt || '?';
     opts.push({ value: k, label: `${nom} — Lgt ${lgt}` });
