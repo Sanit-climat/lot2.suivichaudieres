@@ -28551,15 +28551,28 @@ function initIntervSelects() {
 function buildIntervLocOptions(ri) {
   const opts = [];
   if (isNaN(ri) || ri === '' || ri === null) return opts;
-  const res = RESIDENCES_DATA[parseInt(ri)];
+  ri = parseInt(ri);
+  const res = RESIDENCES_DATA[ri];
   if (!res) return opts;
+  // 1) Locataires seed (non supprimés, non sortis)
   res.locataires.forEach((loc, li) => {
     const delKey = `del_r${ri}_l${li}`;
     if (locOverrides[delKey]) return;
     const over = locOverrides[`r${ri}_l${li}`] || {};
+    if (over._sorti) return; // exclure les sortants
     const nom = over.nom || loc.nom;
     const lgt = over.lgt || loc.lgt || li;
-    opts.push({ value: li, label: `${nom} — Lgt ${lgt}` });
+    opts.push({ value: String(li), label: `${nom} — Lgt ${lgt}` });
+  });
+  // 2) Nouveaux locataires (new_*) de la même résidence
+  Object.keys(locOverrides).forEach(k => {
+    if (!k.startsWith('new_')) return;
+    const loc = locOverrides[k];
+    if (!loc || loc._deleted || loc._sorti) return;
+    if (loc._resIdx !== ri) return;
+    const nom = loc.nom || '(sans nom)';
+    const lgt = loc.lgt || '?';
+    opts.push({ value: k, label: `${nom} — Lgt ${lgt}` });
   });
   return opts;
 }
@@ -28584,13 +28597,23 @@ function initIntervModalSearchableSelects(selectedResIdx, selectedLocIdx) {
 
   if (selectedLocIdx !== null && selectedLocIdx !== undefined && selectedLocIdx !== '' && selectedResIdx !== '' && selectedResIdx !== null) {
     const ri = parseInt(selectedResIdx);
-    const li = parseInt(selectedLocIdx);
-    const res = RESIDENCES_DATA[ri];
-    const loc = res?.locataires[li];
-    const over = locOverrides[`r${ri}_l${li}`] || {};
-    const nom = over.nom || loc?.nom || '';
-    const lgt = over.lgt || loc?.lgt || li;
-    _ssState['intervLocWrap'] = { value: String(selectedLocIdx), label: `${nom} — Lgt ${lgt}` };
+    // Cas locataire seed : selectedLocIdx est un nombre / string numérique
+    // Cas locataire new_* : selectedLocIdx commence par "new_"
+    const isNew = typeof selectedLocIdx === 'string' && selectedLocIdx.startsWith('new_');
+    if (isNew) {
+      const loc = locOverrides[selectedLocIdx] || {};
+      const nom = loc.nom || '(sans nom)';
+      const lgt = loc.lgt || '?';
+      _ssState['intervLocWrap'] = { value: selectedLocIdx, label: `${nom} — Lgt ${lgt}` };
+    } else {
+      const li = parseInt(selectedLocIdx);
+      const res = RESIDENCES_DATA[ri];
+      const loc = res?.locataires[li];
+      const over = locOverrides[`r${ri}_l${li}`] || {};
+      const nom = over.nom || loc?.nom || '';
+      const lgt = over.lgt || loc?.lgt || li;
+      _ssState['intervLocWrap'] = { value: String(li), label: `${nom} — Lgt ${lgt}` };
+    }
   } else {
     _ssState['intervLocWrap'] = { value: '', label: '— Sélectionner un locataire —' };
   }
@@ -28639,26 +28662,40 @@ window.saveIntervention = function() {
   const riStr = ssGetValue('intervResWrap');
   const liStr = ssGetValue('intervLocWrap');
   const ri = riStr !== '' ? parseInt(riStr) : NaN;
-  const li = liStr !== '' ? parseInt(liStr) : NaN;
   const date = document.getElementById('intervDate').value;
 
-  if (isNaN(ri) || isNaN(li) || !date) {
+  // Détection locataire seed vs new_*
+  const isNewLoc = typeof liStr === 'string' && liStr.startsWith('new_');
+  const li = isNewLoc ? null : (liStr !== '' ? parseInt(liStr) : NaN);
+
+  if (isNaN(ri) || (!isNewLoc && isNaN(li)) || (isNewLoc && !liStr) || !date) {
     alert('Veuillez renseigner la résidence, le locataire et la date.');
     return;
   }
 
   const res = RESIDENCES_DATA[ri];
-  const loc = res?.locataires[li];
-  const over = locOverrides[`r${ri}_l${li}`] || {};
-  const locNom = over.nom || loc?.nom || '';
-  const chaudiereVal = getLocChaudiere(ri, li);
+  let locNom = '';
+  let chaudiereVal = '';
+  let storageKey = '';
+  if (isNewLoc) {
+    const loc = locOverrides[liStr] || {};
+    locNom = loc.nom || '';
+    chaudiereVal = getLocChaudiere(null, null, liStr) || '';
+    storageKey = liStr; // utilisé pour lot2/<key>
+  } else {
+    const loc = res?.locataires[li];
+    const over = locOverrides[`r${ri}_l${li}`] || {};
+    locNom = over.nom || loc?.nom || '';
+    chaudiereVal = getLocChaudiere(ri, li) || '';
+    storageKey = (typeof getKey === 'function') ? getKey(ri, li) : `r${ri}_l${li}`;
+  }
 
   const data = {
     resIdx: ri,
-    locIdx: li,
+    locIdx: isNewLoc ? liStr : li,
     locNom,
     resNom: res?.nom || '',
-    chaudiere: chaudiereVal || '',
+    chaudiere: chaudiereVal,
     date,
     technicien: document.getElementById('intervTechnicien').value.trim(),
     type: document.getElementById('intervType').value,
@@ -28677,8 +28714,7 @@ window.saveIntervention = function() {
     data.createdBy = data.updatedBy;
     db.ref(`lot2_interventions/${uid}`).set(data);
     // Marquer aussi l'entretien comme fait dans lot2/
-    const k = getKey(ri, li);
-    db.ref(`lot2/${k}`).update({
+    db.ref(`lot2/${storageKey}`).update({
       done: true,
       doneAt: data.createdAt,
       doneBy: data.updatedBy,
