@@ -378,13 +378,7 @@ body.readonly .readonly-badge { display:flex !important }
         <option value="done">✅ Fait</option>
         <option value="todo">⏳ À faire</option>
       </select>
-      <div class="ss-wrap" id="filterResidenceWrap" style="min-width:240px">
-    <div class="ss-input" id="filterResidenceWrap_btn" tabindex="0">Toutes les résidences</div>
-    <span class="ss-arrow" id="filterResidenceWrap_arrow">▼</span>
-    <div class="ss-dropdown" id="filterResidenceWrap_drop">
-      <div class="ss-search"><input type="text" id="filterResidenceWrap_search" placeholder="🔍 Rechercher..." autocomplete="off"></div>
-      <div class="ss-list" id="filterResidenceWrap_list"><div class="ss-option selected" data-value="">Toutes les résidences</div><div class="ss-option" data-value="0">Le Clos des Écoles - Lambesc</div><div class="ss-option" data-value="1">Le Loriot - La Roque d'Anthéron</div><div class="ss-option" data-value="2">Les Bastides du Griffon - Vitrolles</div><div class="ss-option" data-value="3">Les Pergolas - Marignane</div><div class="ss-option" data-value="4">Les Vignes - Lançon de Provence</div><div class="ss-option" data-value="5">Parc Camoin - Marignane</div><div class="ss-option" data-value="6">Le Clos de Lacanau - Marignane</div><div class="ss-option" data-value="7">Le Clos du Pressoir - Velaux</div><div class="ss-option" data-value="8">Domaine de Beauprés 2 - Marignane</div><div class="ss-option" data-value="9">Les Grandes Terres - Le Puy Ste Réparade</div><div class="ss-option" data-value="10">Les Logis de Berre - Berre l'Étang</div><div class="ss-option" data-value="11">Les Moulins de Guynemer - Marignane</div><div class="ss-option" data-value="12">Les Raumettes - Marignane</div><div class="ss-option" data-value="13">Cœur de Pinède - Pertuis</div><div class="ss-option" data-value="14">Domaine de Beauprés 1 - Marignane</div><div class="ss-option" data-value="15">Les Frégates - Rognac</div><div class="ss-option" data-value="16">Latécoère - Marignane</div><div class="ss-option" data-value="17">L'Ancolie - Eyguières</div><div class="ss-option" data-value="18">Parc des Ecureils</div></div>
-    </div></div>
+      <div class="ss-wrap" id="filterResidenceWrap" style="min-width:240px"></div>
       <button class="btn-add" onclick="openResModal()" style="white-space:nowrap">➕ Nouvelle résidence</button>
     </div>
     <div class="legend-bar">
@@ -23477,13 +23471,7 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
         <h2>👤 Locataires</h2>
         <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
           <input type="text" id="locSearchInput" placeholder="🔍 Rechercher..." oninput="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;min-width:220px">
-          <div class="ss-wrap" id="locFilterResWrap" style="min-width:220px">
-    <div class="ss-input" id="locFilterResWrap_btn" tabindex="0">Toutes les résidences</div>
-    <span class="ss-arrow" id="locFilterResWrap_arrow">▼</span>
-    <div class="ss-dropdown" id="locFilterResWrap_drop">
-      <div class="ss-search"><input type="text" id="locFilterResWrap_search" placeholder="🔍 Rechercher..." autocomplete="off"></div>
-      <div class="ss-list" id="locFilterResWrap_list"><div class="ss-option selected" data-value="">Toutes les résidences</div><div class="ss-option" data-value="0">Le Clos des Écoles - Lambesc</div><div class="ss-option" data-value="1">Le Loriot - La Roque d'Anthéron</div><div class="ss-option" data-value="2">Les Bastides du Griffon - Vitrolles</div><div class="ss-option" data-value="3">Les Pergolas - Marignane</div><div class="ss-option" data-value="4">Les Vignes - Lançon de Provence</div><div class="ss-option" data-value="5">Parc Camoin - Marignane</div><div class="ss-option" data-value="6">Le Clos de Lacanau - Marignane</div><div class="ss-option" data-value="7">Le Clos du Pressoir - Velaux</div><div class="ss-option" data-value="8">Domaine de Beauprés 2 - Marignane</div><div class="ss-option" data-value="9">Les Grandes Terres - Le Puy Ste Réparade</div><div class="ss-option" data-value="10">Les Logis de Berre - Berre l'Étang</div><div class="ss-option" data-value="11">Les Moulins de Guynemer - Marignane</div><div class="ss-option" data-value="12">Les Raumettes - Marignane</div><div class="ss-option" data-value="13">Cœur de Pinède - Pertuis</div><div class="ss-option" data-value="14">Domaine de Beauprés 1 - Marignane</div><div class="ss-option" data-value="15">Les Frégates - Rognac</div><div class="ss-option" data-value="16">Latécoère - Marignane</div><div class="ss-option" data-value="17">L'Ancolie - Eyguières</div><div class="ss-option" data-value="18">Parc des Ecureils</div></div>
-    </div></div>
+          <div class="ss-wrap" id="locFilterResWrap" style="min-width:220px"></div>
           <select id="locFilterStatut" onchange="renderLocatairesTable()" style="padding:8px 12px;border:1px solid var(--border);border-radius:8px;font-size:13px;outline:none;background:var(--white)">
             <option value="all">Tous les statuts</option>
             <option value="todo">⏳ Non réalisés</option>
@@ -23510,13 +23498,7 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
     <div class="toolbar">
       <div class="search-bar" style="margin-bottom:0;flex:1">
         <input type="text" id="chaudSearchInput" placeholder="🔍 Rechercher locataire ou type de chaudière..." oninput="renderChaudieresTable()">
-        <div class="ss-wrap" id="chaudFilterResWrap" style="min-width:200px">
-    <div class="ss-input" id="chaudFilterResWrap_btn" tabindex="0">Toutes les résidences</div>
-    <span class="ss-arrow" id="chaudFilterResWrap_arrow">▼</span>
-    <div class="ss-dropdown" id="chaudFilterResWrap_drop">
-      <div class="ss-search"><input type="text" id="chaudFilterResWrap_search" placeholder="🔍 Rechercher..." autocomplete="off"></div>
-      <div class="ss-list" id="chaudFilterResWrap_list"><div class="ss-option selected" data-value="">Toutes les résidences</div><div class="ss-option" data-value="1">Le Loriot - La Roque d'Anthéron</div><div class="ss-option" data-value="2">Les Bastides du Griffon - Vitrolles</div><div class="ss-option" data-value="3">Les Pergolas - Marignane</div><div class="ss-option" data-value="4">Les Vignes - Lançon de Provence</div><div class="ss-option" data-value="6">Le Clos de Lacanau - Marignane</div><div class="ss-option" data-value="7">Le Clos du Pressoir - Velaux</div><div class="ss-option" data-value="8">Domaine de Beauprés 2 - Marignane</div><div class="ss-option" data-value="9">Les Grandes Terres - Le Puy Ste Réparade</div><div class="ss-option" data-value="12">Les Raumettes - Marignane</div><div class="ss-option" data-value="13">Cœur de Pinède - Pertuis</div><div class="ss-option" data-value="14">Domaine de Beauprés 1 - Marignane</div><div class="ss-option" data-value="15">Les Frégates - Rognac</div><div class="ss-option" data-value="16">Latécoère - Marignane</div><div class="ss-option" data-value="17">L'Ancolie - Eyguières</div><div class="ss-option" data-value="18">Parc des Ecureils</div></div>
-    </div></div>
+        <div class="ss-wrap" id="chaudFilterResWrap" style="min-width:200px"></div>
       </div>
       <button class="btn-add" onclick="openChaudModal()" style="margin-left:10px">➕ Ajouter chaudière</button>
     </div>
@@ -23528,13 +23510,7 @@ Faudra Remplacer la bouche de la cuisine&#39;,&#39;2026-05-13&#39;)" style="marg
     <div class="toolbar">
       <div class="search-bar" style="margin-bottom:0;flex:1">
         <input type="text" id="intervSearchInput" placeholder="🔍 Rechercher locataire, résidence, technicien..." oninput="renderInterventionsTable()">
-        <div class="ss-wrap" id="intervFilterResWrap" style="min-width:200px">
-    <div class="ss-input" id="intervFilterResWrap_btn" tabindex="0">Toutes les résidences</div>
-    <span class="ss-arrow" id="intervFilterResWrap_arrow">▼</span>
-    <div class="ss-dropdown" id="intervFilterResWrap_drop">
-      <div class="ss-search"><input type="text" id="intervFilterResWrap_search" placeholder="🔍 Rechercher..." autocomplete="off"></div>
-      <div class="ss-list" id="intervFilterResWrap_list"><div class="ss-option selected" data-value="">Toutes les résidences</div><div class="ss-option" data-value="0">Le Clos des Écoles - Lambesc</div><div class="ss-option" data-value="1">Le Loriot - La Roque d'Anthéron</div><div class="ss-option" data-value="2">Les Bastides du Griffon - Vitrolles</div><div class="ss-option" data-value="3">Les Pergolas - Marignane</div><div class="ss-option" data-value="4">Les Vignes - Lançon de Provence</div><div class="ss-option" data-value="5">Parc Camoin - Marignane</div><div class="ss-option" data-value="6">Le Clos de Lacanau - Marignane</div><div class="ss-option" data-value="7">Le Clos du Pressoir - Velaux</div><div class="ss-option" data-value="8">Domaine de Beauprés 2 - Marignane</div><div class="ss-option" data-value="9">Les Grandes Terres - Le Puy Ste Réparade</div><div class="ss-option" data-value="10">Les Logis de Berre - Berre l'Étang</div><div class="ss-option" data-value="11">Les Moulins de Guynemer - Marignane</div><div class="ss-option" data-value="12">Les Raumettes - Marignane</div><div class="ss-option" data-value="13">Cœur de Pinède - Pertuis</div><div class="ss-option" data-value="14">Domaine de Beauprés 1 - Marignane</div><div class="ss-option" data-value="15">Les Frégates - Rognac</div><div class="ss-option" data-value="16">Latécoère - Marignane</div><div class="ss-option" data-value="17">L'Ancolie - Eyguières</div><div class="ss-option" data-value="18">Parc des Ecureils</div></div>
-    </div></div>
+        <div class="ss-wrap" id="intervFilterResWrap" style="min-width:200px"></div>
         <select id="intervFilterPeriod" onchange="renderInterventionsTable()">
           <option value="">Toute période</option>
           <option value="7">7 derniers jours</option>
@@ -25549,27 +25525,6 @@ const RESIDENCES_DATA = [
       {"ref": "", "nom": "NOM ENTRETIENN NON EFFECTEUR LOC ABS AU RDV", "bat": "", "esc": "", "etage": "", "lgt": "", "type": "", "tel": "", "email": "", "adresse": "", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
       {"ref": "", "nom": "NOMBRE ENTRETIEN NON EFFECTEUR", "bat": "", "esc": "", "etage": "", "lgt": "", "type": "", "tel": "", "email": "", "adresse": "7", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""}
     ]
-  },
-  {
-    "nom": "Le Parc aux Écureuils - Lambesc",
-    "locataires": [
-      {"ref": "E22980001L", "nom": "ARU EVELYNE", "bat": "C", "esc": "", "etage": "", "lgt": "1", "type": "", "tel": "0669508801", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980003L", "nom": "PLOUZENNEC TIFFANY", "bat": "C", "esc": "", "etage": "", "lgt": "3", "type": "", "tel": "0768273402", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980004L", "nom": "MEKKI DAOUADJI ASSIA", "bat": "C", "esc": "", "etage": "", "lgt": "4", "type": "", "tel": "0607789745", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980005L", "nom": "GAILLARD DE SEMAINVILLE VIRGINIE", "bat": "C", "esc": "", "etage": "", "lgt": "5", "type": "", "tel": "0663821066", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980011L", "nom": "GAZANHES SAIDA", "bat": "C", "esc": "", "etage": "", "lgt": "11", "type": "", "tel": "0641063220", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980012L", "nom": "BIET AMANDINE MASSONI LAWRENCE TERENCE", "bat": "C", "esc": "", "etage": "", "lgt": "12", "type": "", "tel": "0643849425 / 0651906987", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980013L", "nom": "DEFONS DOMINIQUE", "bat": "C", "esc": "", "etage": "", "lgt": "13", "type": "", "tel": "0760399832", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980014L", "nom": "PROVOST JEAN JACQUES", "bat": "C", "esc": "", "etage": "", "lgt": "14", "type": "", "tel": "0622631929", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980015L", "nom": "VERANO LAURETTE", "bat": "C", "esc": "", "etage": "", "lgt": "15", "type": "", "tel": "0625921960", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980016L", "nom": "MARROUCHI ALYA", "bat": "C", "esc": "", "etage": "", "lgt": "16", "type": "", "tel": "0753791630", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980021L", "nom": "MAZZOLA MARION", "bat": "C", "esc": "", "etage": "", "lgt": "21", "type": "", "tel": "0664823009", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980022L", "nom": "REINARD ISABELLE ISSANKA", "bat": "C", "esc": "", "etage": "", "lgt": "22", "type": "", "tel": "0684623747", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980023L", "nom": "EBERLE PHILIPPE", "bat": "C", "esc": "", "etage": "", "lgt": "23", "type": "", "tel": "0760824392", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980024L", "nom": "GLACHANT ALAIN", "bat": "C", "esc": "", "etage": "", "lgt": "24", "type": "", "tel": "0621268218", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980025L", "nom": "VELA DENIS", "bat": "C", "esc": "", "etage": "", "lgt": "25", "type": "", "tel": "0652464204", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""},
-      {"ref": "E22980026L", "nom": "LEONARD FLORENCE", "bat": "C", "esc": "", "etage": "", "lgt": "26", "type": "", "tel": "0662877626", "email": "", "adresse": "14 RUE NOTRE DAME DE LA ROSE 13410 LAMBESC", "dateEntretienPrec": "", "dateEntretien2026": "", "dateProchainEntretien": ""}
-    ]
   }
 ];
 
@@ -25986,6 +25941,7 @@ function renderParamResidences() {
       <td style="text-align:center;font-size:13px;color:#64748b">${nbLoc}</td>
       <td style="text-align:right">
         ${!isReadOnly && !isDeleted ? `
+          ${!isStatic ? `<button class="btn-sm btn-edit" onclick="importLocatairesExcel('${fbKey}','${res.nom.replace(/'/g,"\\'")}')" style="margin-right:4px">📥 Importer locataires</button>` : ''}
           <button class="btn-sm btn-edit" onclick="openResModalEdit('${fbKey}','${res.nom.replace(/'/g,"\\'")}','${type}')" style="margin-right:4px">✏️ Modifier</button>
           <button class="btn-sm btn-delete" onclick="deleteResidence('${fbKey}','${res.nom.replace(/'/g,"\\'")}')">🗑️ Supprimer</button>
         ` : ''}
@@ -26011,6 +25967,98 @@ function renderParamResidences() {
       <p style="font-size:12px;color:#aaa;padding:10px 16px;text-align:right">${RESIDENCES_DATA.length} résidence(s) au total</p>
     </div>`;
 }
+
+// ===================== IMPORT LISTE LOCATAIRES (Excel bailleur) =====================
+function _chargerSheetJS() {
+  if (window.XLSX) return Promise.resolve();
+  return new Promise((res, rej) => {
+    const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    sc.onload = () => res();
+    sc.onerror = () => rej(new Error('Chargement de la librairie Excel impossible'));
+    document.head.appendChild(sc);
+  });
+}
+
+function _parseListeLocataires(rows) {
+  const txt = v => String(v === null || v === undefined ? '' : v).trim();
+  const low = v => txt(v).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  let h = -1;
+  for (let i = 0; i < Math.min(rows.length, 40); i++) {
+    const r = (rows[i] || []).map(low);
+    if (r.includes('nom contrat fl') || r.includes('nom')) { h = i; break; }
+  }
+  if (h < 0) throw new Error('Colonne « Nom contrat FL » introuvable dans le fichier.');
+  const H = (rows[h] || []).map(low);
+  const col = (...names) => { for (const n of names) { const i = H.indexOf(n); if (i >= 0) return i; } return -1; };
+  const c = {
+    ref:   col('module principal fl', 'reference', 'ref'),
+    nom:   col('nom contrat fl', 'nom'),
+    bat:   col('adresse nom ensemble fl', 'batiment', 'bat'),
+    esc:   col('adresse entree fl', 'escalier', 'esc'),
+    etage: col('etage'),
+    lgt:   col('numero de porte', 'logement', 'lgt'),
+    type:  col('type', 'typologie'),
+    a1: col('adresse ligne adr1 fl', 'adresse'), a2: col('adresse ligne adr2 fl'),
+    a3: col('adresse ligne adr3 fl'), a4: col('adresse ligne adr4 fl'),
+    t1: col('mobile signataire principal', 'mobile', 'telephone', 'tel'),
+    t2: col('tel perso signataire principal'),
+    t3: col('mobile co-signataire'),
+    email: col('email', 'e-mail', 'mail'),
+  };
+  const get = (r, i) => (i >= 0 ? txt(r[i]) : '');
+  const locs = [];
+  for (let i = h + 1; i < rows.length; i++) {
+    const r = rows[i] || [];
+    const nom = get(r, c.nom);
+    if (!nom) continue;
+    const tels = [];
+    [c.t1, c.t2, c.t3].forEach(ci => { const t = get(r, ci); if (t && !tels.includes(t)) tels.push(t); });
+    let esc = get(r, c.esc); if (esc === '.') esc = '';
+    locs.push({
+      ref: get(r, c.ref),
+      nom: nom,
+      bat: get(r, c.bat).replace(/^B[AÂ]TIMENT\s*/i, ''),
+      esc: esc,
+      etage: get(r, c.etage),
+      lgt: get(r, c.lgt),
+      type: get(r, c.type),
+      tel: tels.join(' / '),
+      email: get(r, c.email),
+      adresse: [c.a1, c.a2, c.a3, c.a4].map(ci => get(r, ci)).filter(Boolean).join(' '),
+      dateEntretienPrec: '', dateEntretien2026: '', dateProchainEntretien: ''
+    });
+  }
+  return locs;
+}
+
+window.importLocatairesExcel = function(fbKey, nom) {
+  if (isReadOnly) return;
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.xlsx,.xls,.csv';
+  input.onchange = async () => {
+    const file = input.files[0];
+    if (!file) return;
+    try {
+      await _chargerSheetJS();
+      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array' });
+      const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '', raw: false });
+      const locs = _parseListeLocataires(rows);
+      if (!locs.length) { showToast('⚠️ Aucun locataire trouvé dans le fichier.'); return; }
+      const res = RESIDENCES_DATA.find(r => r._fbKey === fbKey);
+      const nbExist = res ? res.locataires.length : 0;
+      if (nbExist > 0 && !confirm(`« ${nom} » contient déjà ${nbExist} locataire(s).\nLes remplacer par les ${locs.length} locataires du fichier ?`)) return;
+      if (nbExist === 0 && !confirm(`Importer ${locs.length} locataire(s) dans « ${nom} » ?`)) return;
+      await db.ref('lot2_residences/' + fbKey + '/locataires').set(locs);
+      showToast(`✅ ${locs.length} locataire(s) importé(s) dans ${nom}`);
+    } catch (e) {
+      console.error(e);
+      showToast('❌ Import impossible : ' + e.message);
+    }
+  };
+  input.click();
+};
 
 window.openResModal = function() {
   if (isReadOnly) return;
